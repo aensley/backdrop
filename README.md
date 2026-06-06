@@ -19,15 +19,22 @@ backdrop is a Bash script that fetches a daily image from one of several curated
 ## Installation
 
 ```bash
+curl -fsSL https://ensl.ee/backdrop | bash
+```
+
+Or clone the repo and run the installer locally:
+
+```bash
 git clone https://github.com/aensley/backdrop.git \
   && cd backdrop && ./install.sh
 ```
 
 The installer:
 
-1. Copies `backdrop.sh` to `/usr/local/bin/backdrop`
-2. Installs `backdrop.service` and `backdrop.timer` to `~/.config/systemd/user/`
-3. Runs `backdrop enable` to start the daily timer
+1. Downloads (or uses local) `backdrop.sh`, `backdrop.service`, and `backdrop.timer`
+2. Copies `backdrop` to `/usr/local/bin/`
+3. Installs `backdrop.service` and `backdrop.timer` to `~/.config/systemd/user/`
+4. Runs `backdrop enable` to start the daily timer
 
 ## Usage
 
