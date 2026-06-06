@@ -18,6 +18,8 @@ backdrop is a Bash script that fetches a daily image from one of several curated
 
 ## Installation
 
+Install with a single command:
+
 ```bash
 curl -fsSL https://ensl.ee/backdrop | bash
 ```
