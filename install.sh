@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 SYSTEMD_USER_DIR="$BASE_CONFIG_DIR/systemd/user"
 REPO_RAW="https://raw.githubusercontent.com/aensley/backdrop/main/src"
 
+# Resolve the local src/ directory only when running from a real file, not piped stdin.
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  SCRIPT_DIR=""
+fi
+
 fetch() {
-  local src="$1" dest="$2"
-  if [ -f "$SCRIPT_DIR/src/$(basename "$src")" ]; then
-    cp "$SCRIPT_DIR/src/$(basename "$src")" "$dest"
+  local name dest="$2"
+  name="$(basename "$1")"
+  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/$name" ]; then
+    cp "$SCRIPT_DIR/src/$name" "$dest"
   else
-    curl -fsSL "$REPO_RAW/$(basename "$src")" -o "$dest"
+    curl -fsSL "$REPO_RAW/$name" -o "$dest"
   fi
 }
 
