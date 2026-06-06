@@ -18,7 +18,7 @@ fetch() {
   if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/$name" ]; then
     cp "$SCRIPT_DIR/src/$name" "$dest"
   else
-    curl -fsSL "$REPO_RAW/$name" -o "$dest"
+    curl -fsSL "$REPO_RAW/$name?$(date +%s)" -o "$dest"
   fi
 }
 
