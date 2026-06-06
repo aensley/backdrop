@@ -1,7 +1,8 @@
 # backdrop
 
-![Version](https://img.shields.io/badge/backdrop-v1.0.0-blue.svg?logo=gnubash&logoColor=fff)
-[![License](https://img.shields.io/github/license/aensley/file.svg)](https://github.com/aensley/file/blob/main/LICENSE)
+[![Version](https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop
+&logoColor=fff)](https://github.com/aensley/backdrop/releases)
+[![License](https://img.shields.io/github/license/aensley/backdrop.svg)](https://github.com/aensley/backdrop/blob/main/LICENSE)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?logo=prettier)](https://prettier.io)
 
 Set a new desktop wallpaper every day from various sources.
