@@ -7,11 +7,11 @@ SYSTEMD_USER_DIR="$BASE_CONFIG_DIR/systemd/user"
 
 echo "Installing backdrop..."
 
-sudo install -m 755 "$SCRIPT_DIR/backdrop.sh" /usr/local/bin/backdrop
+sudo install -m 755 "$SCRIPT_DIR/src/backdrop.sh" /usr/local/bin/backdrop
 
 mkdir -p "$SYSTEMD_USER_DIR"
-install -m 644 "$SCRIPT_DIR/backdrop.service" "$SYSTEMD_USER_DIR/backdrop.service"
-install -m 644 "$SCRIPT_DIR/backdrop.timer" "$SYSTEMD_USER_DIR/backdrop.timer"
+install -m 644 "$SCRIPT_DIR/src/backdrop.service" "$SYSTEMD_USER_DIR/backdrop.service"
+install -m 644 "$SCRIPT_DIR/src/backdrop.timer" "$SYSTEMD_USER_DIR/backdrop.timer"
 
 backdrop enable
 

@@ -340,6 +340,8 @@ Usage: backdrop <command>
   status            Show the active source and last image
   random            Refresh from a randomly chosen source (does not change active)
   enable            Enable the daily systemd --user timer (backdrop.timer)
+  uninstall         Remove backdrop from this system
+  uninstall --purge Remove backdrop and delete config and cached wallpapers
   help              Show this help
 
 Sources:
@@ -354,7 +356,7 @@ EOF
 # --- Dispatch ---------------------------------------------------------------
 
 cmd="${1:-update}"
-load_config
+[ "$cmd" != "uninstall" ] && load_config
 case "$cmd" in
   update | refresh)
     apply_wallpaper "$(get_source)"
@@ -394,6 +396,23 @@ case "$cmd" in
       echo "backdrop: timer time set to $t and timer restarted."
     else
       echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
+    fi
+    ;;
+  uninstall)
+    purge=false
+    [ "${2:-}" = "--purge" ] && purge=true
+    systemctl --user disable --now backdrop.timer 2> /dev/null || true
+    systemctl --user daemon-reload
+    systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
+    rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"
+    rm -rf "$systemd_user_dir/backdrop.timer.d"
+    sudo rm -f /usr/local/bin/backdrop
+    if $purge; then
+      rm -rf "$CONFIG_DIR" "$STATE_DIR"
+      echo "backdrop: uninstalled. Config and cached wallpapers removed."
+    else
+      echo "backdrop: uninstalled."
+      echo "Note: config and cached wallpapers were not removed. Run 'backdrop uninstall --purge' to delete them."
     fi
     ;;
   -h | --help | help)

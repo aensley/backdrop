@@ -78,11 +78,11 @@ The config file lives at `~/.config/backdrop/config` and is created on first run
 ## Uninstallation
 
 ```bash
-./uninstall.sh
+backdrop uninstall
 ```
 
 To also remove your config and cached wallpapers:
 
 ```bash
-./uninstall.sh --purge
+backdrop uninstall --purge
 ```
