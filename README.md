@@ -1,7 +1,6 @@
 # backdrop
 
-[![Version](https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop
-&logoColor=fff)](https://github.com/aensley/backdrop/releases)
+[![Version](https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff)](https://github.com/aensley/backdrop/releases)
 [![License](https://img.shields.io/github/license/aensley/backdrop.svg)](https://github.com/aensley/backdrop/blob/main/LICENSE)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?logo=prettier)](https://prettier.io)
 
