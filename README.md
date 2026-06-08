@@ -8,13 +8,25 @@ Set a new desktop wallpaper every day from various sources.
 
 ## What it does
 
-backdrop is a Bash script that fetches a daily image from one of several curated sources and sets it as your GNOME desktop wallpaper. It automatically picks the best display mode (zoom or scaled) based on the image dimensions and your screen aspect ratio. Run it once manually or let a systemd timer handle it on a schedule.
+backdrop fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
+
+Run it once manually or let a systemd timer handle it on a schedule.
 
 ## Requirements
 
-- GNOME desktop (uses `gsettings` to set the wallpaper)
-- `curl`, `jq`, `file`, `bc` (standard on most distros)
+- GNOME or KDE Plasma desktop
+- `curl`, `python3` (standard on most distros)
 - systemd (for the daily timer)
+
+## Desktop Environments
+
+backdrop supports the following Desktop Environments.
+
+| Desktop               | Method                        | Notes                                                                           |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
+| GNOME                 | `gsettings`                   |                                                                                 |
+| KDE Plasma            | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
+| KDE Plasma (fallback) | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
 
 ## Installation
 
