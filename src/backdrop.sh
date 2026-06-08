@@ -233,7 +233,8 @@ PY
 screen_ar() {
   local f modes mode w h
   for f in /sys/class/drm/*/status; do
-    [ -r "$f" ] && [ "$(cat "$f" 2>/dev/null)" = "connected" ] || continue
+    [ -r "$f" ] || continue
+    [ "$(cat "$f" 2>/dev/null)" = "connected" ] || continue
     modes="${f%status}modes"
     mode="$(head -n1 "$modes" 2>/dev/null)" # preferred mode, e.g. 3840x2160
     if [[ "$mode" =~ ^([0-9]+)x([0-9]+)$ ]]; then
