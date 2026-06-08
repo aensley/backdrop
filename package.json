@@ -11,6 +11,9 @@
   },
   "license": "MIT",
   "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "commit": "czg",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
@@ -18,33 +21,13 @@
     "update": "npx npm-check-updates -u && npm update"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "czg": "^1.13.1",
     "prettier": "^3.8.3",
-    "prettier-plugin-sh": "^0.18.1",
     "simple-git-hooks": "^2.13.1"
   },
   "allowScripts": {
     "simple-git-hooks@2.13.1": true
-  },
-  "release": {
-    "branches": [
-      "main"
-    ],
-    "plugins": [
-      [
-        "@semantic-release/commit-analyzer",
-        {
-          "preset": "conventionalcommits"
-        }
-      ],
-      [
-        "@semantic-release/release-notes-generator",
-        {
-          "preset": "conventionalcommits"
-        }
-      ],
-      "@semantic-release/github"
-    ]
   },
   "prettier": {
     "tabWidth": 2,
@@ -64,21 +47,7 @@
     "proseWrap": "preserve",
     "quoteProps": "as-needed",
     "requirePragma": false,
-    "vueIndentScriptAndStyle": false,
-    "plugins": [
-      "prettier-plugin-sh"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "*.sh",
-          "*.bash"
-        ],
-        "options": {
-          "parser": "sh"
-        }
-      }
-    ]
+    "vueIndentScriptAndStyle": false
   },
   "config": {
     "commitizen": {

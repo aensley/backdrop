@@ -1,8 +1,10 @@
 # backdrop
 
-[![Version](https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff)](https://github.com/aensley/backdrop/releases)
-[![License](https://img.shields.io/github/license/aensley/backdrop.svg)](https://github.com/aensley/backdrop/blob/main/LICENSE)
-[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?logo=prettier)](https://prettier.io)
+<p align="center">
+  <img src="src-tauri/icons/icon.svg" alt="backdrop" width="128"/><br/>
+  <a href="https://github.com/aensley/backdrop/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff" alt="Version"/></a>
+  <a href="https://github.com/aensley/backdrop/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop.svg" alt="License"/></a>
+</p>
 
 Set a new desktop wallpaper every day from various sources.
 
@@ -12,23 +14,18 @@ backdrop fetches a daily image from one of several curated sources and sets it a
 
 Run it once manually or let a systemd timer handle it on a schedule.
 
-## Requirements
+## Supported Platforms
 
-- GNOME or KDE Plasma desktop
-- `curl`, `python3` (standard on most distros)
-- systemd (for the daily timer)
-
-## Desktop Environments
-
-backdrop supports the following Desktop Environments.
-
-| Desktop               | Method                        | Notes                                                                           |
-| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| GNOME                 | `gsettings`                   |                                                                                 |
-| KDE Plasma            | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
-| KDE Plasma (fallback) | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
+- Linux (debian, arch, fedora, etc.)
+  - Gnome, KDE, Cinnamon, XFCE, Mate, Cosmic, LXQt
+- Windows
+- Mac OS
 
 ## Installation
+
+Download the latest release for your platform from the [releases page](https://github.com/aensley/backdrop/releases).
+
+### Linux
 
 Install with a single command:
 
@@ -49,6 +46,22 @@ The installer:
 2. Copies `backdrop` to `/usr/local/bin/`
 3. Installs `backdrop.service` and `backdrop.timer` to `~/.config/systemd/user/`
 4. Runs `backdrop enable` to start the daily timer
+
+### Windows
+
+Run the `.msi` or setup `.exe` installer. Windows SmartScreen may warn about an unknown publisher — click **More info → Run anyway**.
+
+### macOS
+
+Open the `.dmg` and drag backdrop to your Applications folder.
+
+> **Note:** backdrop is not code-signed, so macOS Gatekeeper will block it on first launch.
+> To open it anyway:
+>
+> 1. Right-click the app → **Open**
+> 2. Click **Open** in the dialog that appears
+>
+> You only need to do this once. Alternatively, go to **System Settings → Privacy & Security** and click **Open Anyway** after the blocked launch attempt.
 
 ## Usage
 
