@@ -2,16 +2,26 @@
 
 ## Setup
 
-After cloning, run:
+After cloning, install the Node dev dependencies:
 
 ```bash
 npm install
 ```
 
-This installs dev dependencies and registers the git hooks via `simple-git-hooks`:
+This registers the git hooks via `simple-git-hooks`:
 
-- **pre-commit** — runs Prettier to enforce consistent formatting
+- **pre-commit** — runs Prettier, shfmt, and ShellCheck
 - **prepare-commit-msg** — launches an interactive conventional commit prompt (`czg`)
+
+You also need **shellcheck** and **shfmt** installed locally for the hooks and `npm run lint` / `npm test` to work:
+
+```bash
+# Ubuntu/Debian
+sudo apt install shellcheck shfmt
+
+# macOS
+brew install shellcheck shfmt
+```
 
 ## Commits
 

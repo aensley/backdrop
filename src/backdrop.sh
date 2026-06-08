@@ -71,10 +71,10 @@ cfg_set() {
   ensure_config
   if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$CONFIG_FILE"; then
     tmp="$(mktemp)"
-    sed -E "s|^([[:space:]]*${key}[[:space:]]*=[[:space:]]*).*|\\1${val}|" "$CONFIG_FILE" > "$tmp"
+    sed -E "s|^([[:space:]]*${key}[[:space:]]*=[[:space:]]*).*|\\1${val}|" "$CONFIG_FILE" >"$tmp"
     mv "$tmp" "$CONFIG_FILE"
   else
-    printf '%s = %s\n' "$key" "$val" >> "$CONFIG_FILE"
+    printf '%s = %s\n' "$key" "$val" >>"$CONFIG_FILE"
   fi
 }
 
@@ -83,9 +83,9 @@ cfg_set() {
 ensure_config() {
   [ -f "$CONFIG_FILE" ] && return 0
   local seed="$SOURCE"
-  [ -r "$LEGACY_SOURCE_FILE" ] && seed="$(tr -d '[:space:]' < "$LEGACY_SOURCE_FILE")"
+  [ -r "$LEGACY_SOURCE_FILE" ] && seed="$(tr -d '[:space:]' <"$LEGACY_SOURCE_FILE")"
   [ -n "$seed" ] || seed="$SOURCE"
-  cat > "$CONFIG_FILE" << EOF
+  cat >"$CONFIG_FILE" <<EOF
 # backdrop configuration  (key = value; lines starting with # are ignored)
 
 # Active wallpaper source: iotd | apod | bing | wmc | eo
@@ -134,7 +134,7 @@ load_config() {
 resolve_iotd() {
   local feed url
   feed="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.nasa.gov/feeds/iotd-feed/")" || return 1
-  url="$(sed -n 's/.*<enclosure url="\([^"]*\)".*/\1/p' <<< "$feed" | head -1)" || true
+  url="$(sed -n 's/.*<enclosure url="\([^"]*\)".*/\1/p' <<<"$feed" | head -1)" || true
   [ -n "$url" ] && printf '%s\n' "$url"
   return 0
 }
@@ -143,8 +143,8 @@ resolve_iotd() {
 resolve_apod() {
   local page rel
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://apod.nasa.gov/apod/astropix.html")" || return 1
-  rel="$(grep -ioE 'href="image/[^"]+\.(jpg|jpeg|png|gif)"' <<< "$page" \
-    | head -1 | sed -E 's/.*href="([^"]+)".*/\1/I')" || true
+  rel="$(grep -ioE 'href="image/[^"]+\.(jpg|jpeg|png|gif)"' <<<"$page" |
+    head -1 | sed -E 's/.*href="([^"]+)".*/\1/I')" || true
   [ -n "$rel" ] && printf '%s\n' "https://apod.nasa.gov/apod/$rel"
   return 0
 }
@@ -154,8 +154,8 @@ resolve_bing() {
   local json urlbase url
   json="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US")" || return 1
-  urlbase="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["urlbase"])' <<< "$json")" || true
-  url="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["url"])' <<< "$json")" || true
+  urlbase="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["urlbase"])' <<<"$json")" || true
+  url="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["url"])' <<<"$json")" || true
   [ -n "$urlbase" ] && printf '%s\n' "https://www.bing.com${urlbase}_UHD.jpg" # 4K
   [ -n "$url" ] && printf '%s\n' "https://www.bing.com${url}"                 # 1920x1080 fallback
   return 0
@@ -168,7 +168,7 @@ resolve_wmc() {
   date="$(date +%Y-%m-%d)"
   resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://commons.wikimedia.org/w/api.php?action=expandtemplates&format=json&prop=wikitext&text=%7B%7BPotd/$date%7D%7D")" || return 1
-  file="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["expandtemplates"]["wikitext"])' <<< "$resp" 2> /dev/null)" || return 1
+  file="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["expandtemplates"]["wikitext"])' <<<"$resp" 2>/dev/null)" || return 1
   [ -n "$file" ] || return 0
   enc="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$file")"
   resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
@@ -176,7 +176,7 @@ resolve_wmc() {
   python3 -c 'import json,sys
 p=list(json.load(sys.stdin)["query"]["pages"].values())[0]["imageinfo"][0]
 if p.get("thumburl"): print(p["thumburl"])
-print(p["url"])' <<< "$resp" 2> /dev/null || return 1
+print(p["url"])' <<<"$resp" 2>/dev/null || return 1
   return 0
 }
 
@@ -185,8 +185,8 @@ resolve_eo() {
   local feed item base
   feed="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://earthobservatory.nasa.gov/feeds/image-of-the-day.rss")" || return 1
-  item="$(awk '/<item>/{f=1} f{print} /<\/item>/{if(f)exit}' <<< "$feed")"
-  base="$(grep -oiE 'https://assets\.science\.nasa\.gov/dynamicimage/[^"?]+\.(jpg|jpeg|png)' <<< "$item" | head -1)" || true
+  item="$(awk '/<item>/{f=1} f{print} /<\/item>/{if(f)exit}' <<<"$feed")"
+  base="$(grep -oiE 'https://assets\.science\.nasa\.gov/dynamicimage/[^"?]+\.(jpg|jpeg|png)' <<<"$item" | head -1)" || true
   [ -n "$base" ] || return 0
   printf '%s\n' "${base}?w=3840" # ~4K-wide rendering
   printf '%s\n' "$base"          # CDN-default size as fallback
@@ -197,7 +197,7 @@ resolve_eo() {
 
 # Print "WIDTH HEIGHT" of an image (JPEG/PNG/GIF) using only the Python stdlib.
 image_dims() {
-  python3 - "$1" << 'PY' 2> /dev/null
+  python3 - "$1" <<'PY' 2>/dev/null
 import sys, struct
 def dims(path):
     with open(path, 'rb') as f:
@@ -233,9 +233,9 @@ PY
 screen_ar() {
   local f modes mode w h
   for f in /sys/class/drm/*/status; do
-    [ -r "$f" ] && [ "$(cat "$f" 2> /dev/null)" = "connected" ] || continue
+    [ -r "$f" ] && [ "$(cat "$f" 2>/dev/null)" = "connected" ] || continue
     modes="${f%status}modes"
-    mode="$(head -n1 "$modes" 2> /dev/null)" # preferred mode, e.g. 3840x2160
+    mode="$(head -n1 "$modes" 2>/dev/null)" # preferred mode, e.g. 3840x2160
     if [[ "$mode" =~ ^([0-9]+)x([0-9]+)$ ]]; then
       w="${BASH_REMATCH[1]}"
       h="${BASH_REMATCH[2]}"
@@ -274,7 +274,7 @@ apply_timer_time() {
   local dropin_dir="$BASE_CONFIG_DIR/systemd/user/backdrop.timer.d"
   mkdir -p "$dropin_dir"
   # Empty OnCalendar= clears the inherited value before setting the new one.
-  cat > "$dropin_dir/time.conf" << EOF
+  cat >"$dropin_dir/time.conf" <<EOF
 [Timer]
 OnCalendar=
 OnCalendar=*-*-* ${time}:00
@@ -310,15 +310,15 @@ kde_fillmode() { case "$1" in zoom) echo 2 ;; scaled) echo 1 ;; *) echo 2 ;; esa
 set_wallpaper_kde() {
   local file="$1" opt="$2" qdbus_cmd="" fm script
   fm="$(kde_fillmode "$opt")"
-  command -v qdbus6 &> /dev/null && qdbus_cmd="qdbus6"
-  { [ -z "$qdbus_cmd" ] && command -v qdbus &> /dev/null; } && qdbus_cmd="qdbus"
+  command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
+  { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
   if [ -n "$qdbus_cmd" ]; then
     script="var a=desktops();for(var i=0;i<a.length;i++){var d=a[i];d.wallpaperPlugin='org.kde.image';d.currentConfigGroup=['Wallpaper','org.kde.image','General'];d.writeConfig('Image','file://$file');d.writeConfig('FillMode',$fm);}"
     "$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
-      org.kde.PlasmaShell.evaluateScript "$script" > /dev/null && return 0
+      org.kde.PlasmaShell.evaluateScript "$script" >/dev/null && return 0
   fi
   # Fallback: plasma-apply-wallpaperimage (Plasma 5.21+, no FillMode control).
-  if command -v plasma-apply-wallpaperimage &> /dev/null; then
+  if command -v plasma-apply-wallpaperimage &>/dev/null; then
     plasma-apply-wallpaperimage "$file"
     return 0
   fi
@@ -331,10 +331,10 @@ set_wallpaper() {
     gnome) set_wallpaper_gnome "$file" "$opt" ;;
     kde) set_wallpaper_kde "$file" "$opt" ;;
     *)
-      if command -v gsettings &> /dev/null; then
+      if command -v gsettings &>/dev/null; then
         set_wallpaper_gnome "$file" "$opt"
-      elif command -v qdbus6 &> /dev/null || command -v qdbus &> /dev/null \
-        || command -v plasma-apply-wallpaperimage &> /dev/null; then
+      elif command -v qdbus6 &>/dev/null || command -v qdbus &>/dev/null ||
+        command -v plasma-apply-wallpaperimage &>/dev/null; then
         set_wallpaper_kde "$file" "$opt"
       else
         die "unsupported desktop environment; set XDG_CURRENT_DESKTOP"
@@ -350,7 +350,7 @@ get_source() {
     printf '%s' "$s"
     return
   }
-  if [ -r "$LEGACY_SOURCE_FILE" ]; then tr -d '[:space:]' < "$LEGACY_SOURCE_FILE"; else printf '%s' "$SOURCE"; fi
+  if [ -r "$LEGACY_SOURCE_FILE" ]; then tr -d '[:space:]' <"$LEGACY_SOURCE_FILE"; else printf '%s' "$SOURCE"; fi
 }
 
 is_valid() {
@@ -378,7 +378,7 @@ apply_wallpaper() {
       ok=1
       break
     fi
-  done <<< "$candidates"
+  done <<<"$candidates"
   [ "$ok" -eq 1 ] || die "could not download any image for $src"
 
   local opt
@@ -390,7 +390,7 @@ apply_wallpaper() {
 }
 
 usage() {
-  cat << EOF
+  cat <<EOF
 Usage: backdrop <command>
 
   update            Refresh wallpaper from the active source (default command)
@@ -429,23 +429,23 @@ case "$cmd" in
     ;;
   status)
     echo "Active source:     $(get_source)"
-    latest="$(ls -t "$STATE_DIR"/*.jpg 2> /dev/null | head -1 || true)"
+    latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
     [ -n "$latest" ] && echo "Last image:        $latest"
     de="$(detect_de)"
     method=""
     if [ "$de" = "kde" ]; then
       qdbus_cmd=""
-      command -v qdbus6 &> /dev/null && qdbus_cmd="qdbus6"
-      { [ -z "$qdbus_cmd" ] && command -v qdbus &> /dev/null; } && qdbus_cmd="qdbus"
+      command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
+      { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
       if [ -n "$qdbus_cmd" ]; then
         fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
           org.kde.PlasmaShell.evaluateScript \
           "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
-          2> /dev/null | tr -d '[:space:]')"
+          2>/dev/null | tr -d '[:space:]')"
         case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
       fi
     else
-      method="$(gsettings get org.gnome.desktop.background picture-options 2> /dev/null | tr -d "'")"
+      method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
     fi
     echo "Display method:    ${method:-unknown}"
     echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
@@ -465,7 +465,7 @@ case "$cmd" in
     [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
     cfg_set timer_time "$t"
     apply_timer_time "$t"
-    if systemctl --user is-active --quiet backdrop.timer 2> /dev/null; then
+    if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
       systemctl --user restart backdrop.timer
       echo "backdrop: timer time set to $t and timer restarted."
     else
@@ -475,7 +475,7 @@ case "$cmd" in
   uninstall)
     purge=false
     [ "${2:-}" = "--purge" ] && purge=true
-    systemctl --user disable --now backdrop.timer 2> /dev/null || true
+    systemctl --user disable --now backdrop.timer 2>/dev/null || true
     systemctl --user daemon-reload
     systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
     rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"

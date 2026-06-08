@@ -12,15 +12,15 @@
   "license": "MIT",
   "scripts": {
     "commit": "czg",
-    "lint": "prettier --check .",
-    "lint:fix": "prettier --write .",
+    "test": "shellcheck src/backdrop.sh install.sh",
+    "lint": "prettier --check . && shfmt -d -i 2 -ci src/backdrop.sh install.sh",
+    "lint:fix": "prettier --write . && shfmt -w -i 2 -ci src/backdrop.sh install.sh",
     "prepare": "npx simple-git-hooks",
     "update": "npx npm-check-updates -u && npm update"
   },
   "devDependencies": {
     "czg": "^1.13.1",
     "prettier": "^3.8.3",
-    "prettier-plugin-sh": "^0.18.1",
     "simple-git-hooks": "^2.13.1"
   },
   "allowScripts": {
@@ -64,21 +64,7 @@
     "proseWrap": "preserve",
     "quoteProps": "as-needed",
     "requirePragma": false,
-    "vueIndentScriptAndStyle": false,
-    "plugins": [
-      "prettier-plugin-sh"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "*.sh",
-          "*.bash"
-        ],
-        "options": {
-          "parser": "sh"
-        }
-      }
-    ]
+    "vueIndentScriptAndStyle": false
   },
   "config": {
     "commitizen": {
@@ -88,7 +74,7 @@
     }
   },
   "simple-git-hooks": {
-    "pre-commit": "npm run lint",
+    "pre-commit": "npm run lint && npm run test",
     "prepare-commit-msg": "exec < /dev/tty && node_modules/.bin/czg --hook \"$1\" \"$2\" || true"
   }
 }
