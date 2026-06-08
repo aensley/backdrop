@@ -282,6 +282,67 @@ EOF
   systemctl --user daemon-reload
 }
 
+# --- Desktop environment / wallpaper setters --------------------------------
+
+# Prints "gnome", "kde", or "unknown".
+detect_de() {
+  local combined
+  combined="$(printf '%s:%s' "${XDG_CURRENT_DESKTOP:-}" "${DESKTOP_SESSION:-}" | tr '[:lower:]' '[:upper:]')"
+  case "$combined" in
+    *GNOME*) echo "gnome" ;;
+    *KDE*) echo "kde" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+set_wallpaper_gnome() {
+  local file="$1" opt="$2"
+  gsettings set org.gnome.desktop.background picture-uri "file://$file"
+  gsettings set org.gnome.desktop.background picture-uri-dark "file://$file"
+  gsettings set org.gnome.desktop.background picture-options "$opt"
+}
+
+# Map pick_picture_option output to KDE FillMode (Qt Image.fillMode values):
+#   zoom   -> 2  PreserveAspectCrop (fill screen, crop overflow)
+#   scaled -> 1  PreserveAspectFit  (fit within screen, letterbox)
+kde_fillmode() { case "$1" in zoom) echo 2 ;; scaled) echo 1 ;; *) echo 2 ;; esac }
+
+set_wallpaper_kde() {
+  local file="$1" opt="$2" qdbus_cmd="" fm script
+  fm="$(kde_fillmode "$opt")"
+  command -v qdbus6 &> /dev/null && qdbus_cmd="qdbus6"
+  { [ -z "$qdbus_cmd" ] && command -v qdbus &> /dev/null; } && qdbus_cmd="qdbus"
+  if [ -n "$qdbus_cmd" ]; then
+    script="var a=desktops();for(var i=0;i<a.length;i++){var d=a[i];d.wallpaperPlugin='org.kde.image';d.currentConfigGroup=['Wallpaper','org.kde.image','General'];d.writeConfig('Image','file://$file');d.writeConfig('FillMode',$fm);}"
+    "$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
+      org.kde.PlasmaShell.evaluateScript "$script" > /dev/null && return 0
+  fi
+  # Fallback: plasma-apply-wallpaperimage (Plasma 5.21+, no FillMode control).
+  if command -v plasma-apply-wallpaperimage &> /dev/null; then
+    plasma-apply-wallpaperimage "$file"
+    return 0
+  fi
+  die "KDE: qdbus and plasma-apply-wallpaperimage are both unavailable"
+}
+
+set_wallpaper() {
+  local file="$1" opt="$2"
+  case "$(detect_de)" in
+    gnome) set_wallpaper_gnome "$file" "$opt" ;;
+    kde) set_wallpaper_kde "$file" "$opt" ;;
+    *)
+      if command -v gsettings &> /dev/null; then
+        set_wallpaper_gnome "$file" "$opt"
+      elif command -v qdbus6 &> /dev/null || command -v qdbus &> /dev/null \
+        || command -v plasma-apply-wallpaperimage &> /dev/null; then
+        set_wallpaper_kde "$file" "$opt"
+      else
+        die "unsupported desktop environment; set XDG_CURRENT_DESKTOP"
+      fi
+      ;;
+  esac
+}
+
 get_source() {
   local s
   s="$(cfg_get source)"
@@ -322,9 +383,7 @@ apply_wallpaper() {
 
   local opt
   opt="$(pick_picture_option "$dest")"
-  gsettings set org.gnome.desktop.background picture-uri "file://$dest"
-  gsettings set org.gnome.desktop.background picture-uri-dark "file://$dest"
-  gsettings set org.gnome.desktop.background picture-options "$opt"
+  set_wallpaper "$dest" "$opt"
 
   find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -type f -mtime +14 -delete
   echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest"
@@ -372,7 +431,22 @@ case "$cmd" in
     echo "Active source:     $(get_source)"
     latest="$(ls -t "$STATE_DIR"/*.jpg 2> /dev/null | head -1 || true)"
     [ -n "$latest" ] && echo "Last image:        $latest"
-    method="$(gsettings get org.gnome.desktop.background picture-options 2> /dev/null | tr -d "'")"
+    de="$(detect_de)"
+    method=""
+    if [ "$de" = "kde" ]; then
+      qdbus_cmd=""
+      command -v qdbus6 &> /dev/null && qdbus_cmd="qdbus6"
+      { [ -z "$qdbus_cmd" ] && command -v qdbus &> /dev/null; } && qdbus_cmd="qdbus"
+      if [ -n "$qdbus_cmd" ]; then
+        fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
+          org.kde.PlasmaShell.evaluateScript \
+          "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
+          2> /dev/null | tr -d '[:space:]')"
+        case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
+      fi
+    else
+      method="$(gsettings get org.gnome.desktop.background picture-options 2> /dev/null | tr -d "'")"
+    fi
     echo "Display method:    ${method:-unknown}"
     echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
     echo "Screen aspect:     $(screen_ar) (config fallback: $SCREEN_ASPECT_RATIO)"
