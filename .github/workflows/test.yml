@@ -2,7 +2,6 @@ name: test
 
 on:
   push:
-  pull_request:
 
 permissions:
   contents: read
@@ -12,23 +11,26 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
 
-      - name: install dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      - name: install shfmt
+      - name: Install shfmt
         run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
 
-      - name: lint
+      - name: Lint
         run: npm run lint
 
-      - name: shellcheck
+      - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './src'
+
+      - name: Test
+        run: npm test

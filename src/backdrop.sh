@@ -414,85 +414,87 @@ EOF
 
 # --- Dispatch ---------------------------------------------------------------
 
-cmd="${1:-update}"
-[ "$cmd" != "uninstall" ] && load_config
-case "$cmd" in
-  update | refresh)
-    apply_wallpaper "$(get_source)"
-    ;;
-  set | use)
-    s="${2:-}"
-    is_valid "$s" || die "set: choose a source (${VALID_SOURCES[*]})"
-    cfg_set source "$s"
-    echo "backdrop: active source is now '$s'"
-    apply_wallpaper "$s"
-    ;;
-  status)
-    echo "Active source:     $(get_source)"
-    latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
-    [ -n "$latest" ] && echo "Last image:        $latest"
-    de="$(detect_de)"
-    method=""
-    if [ "$de" = "kde" ]; then
-      qdbus_cmd=""
-      command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
-      { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
-      if [ -n "$qdbus_cmd" ]; then
-        fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
-          org.kde.PlasmaShell.evaluateScript \
-          "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
-          2>/dev/null | tr -d '[:space:]')"
-        case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  cmd="${1:-update}"
+  [ "$cmd" != "uninstall" ] && load_config
+  case "$cmd" in
+    update | refresh)
+      apply_wallpaper "$(get_source)"
+      ;;
+    set | use)
+      s="${2:-}"
+      is_valid "$s" || die "set: choose a source (${VALID_SOURCES[*]})"
+      cfg_set source "$s"
+      echo "backdrop: active source is now '$s'"
+      apply_wallpaper "$s"
+      ;;
+    status)
+      echo "Active source:     $(get_source)"
+      latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+      [ -n "$latest" ] && echo "Last image:        $latest"
+      de="$(detect_de)"
+      method=""
+      if [ "$de" = "kde" ]; then
+        qdbus_cmd=""
+        command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
+        { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
+        if [ -n "$qdbus_cmd" ]; then
+          fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
+            org.kde.PlasmaShell.evaluateScript \
+            "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
+            2>/dev/null | tr -d '[:space:]')"
+          case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
+        fi
+      else
+        method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
       fi
-    else
-      method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
-    fi
-    echo "Display method:    ${method:-unknown}"
-    echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
-    echo "Screen aspect:     $(screen_ar) (config fallback: $SCREEN_ASPECT_RATIO)"
-    echo "Config file:       $CONFIG_FILE"
-    ;;
-  random)
-    apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
-    ;;
-  enable)
-    apply_timer_time "$TIMER_TIME"
-    systemctl --user enable --now backdrop.timer
-    echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
-    ;;
-  set-time)
-    t="${2:-}"
-    [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
-    cfg_set timer_time "$t"
-    apply_timer_time "$t"
-    if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
-      systemctl --user restart backdrop.timer
-      echo "backdrop: timer time set to $t and timer restarted."
-    else
-      echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
-    fi
-    ;;
-  uninstall)
-    purge=false
-    [ "${2:-}" = "--purge" ] && purge=true
-    systemctl --user disable --now backdrop.timer 2>/dev/null || true
-    systemctl --user daemon-reload
-    systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
-    rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"
-    rm -rf "$systemd_user_dir/backdrop.timer.d"
-    sudo rm -f /usr/local/bin/backdrop
-    if $purge; then
-      rm -rf "$CONFIG_DIR" "$STATE_DIR"
-      echo "backdrop: uninstalled. Config and cached wallpapers removed."
-    else
-      echo "backdrop: uninstalled."
-      echo "Note: config and cached wallpapers were not removed. Run 'backdrop uninstall --purge' to delete them."
-    fi
-    ;;
-  -h | --help | help)
-    usage
-    ;;
-  *)
-    die "unknown command '$cmd' (try: backdrop help)"
-    ;;
-esac
+      echo "Display method:    ${method:-unknown}"
+      echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
+      echo "Screen aspect:     $(screen_ar) (config fallback: $SCREEN_ASPECT_RATIO)"
+      echo "Config file:       $CONFIG_FILE"
+      ;;
+    random)
+      apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
+      ;;
+    enable)
+      apply_timer_time "$TIMER_TIME"
+      systemctl --user enable --now backdrop.timer
+      echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
+      ;;
+    set-time)
+      t="${2:-}"
+      [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
+      cfg_set timer_time "$t"
+      apply_timer_time "$t"
+      if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+        systemctl --user restart backdrop.timer
+        echo "backdrop: timer time set to $t and timer restarted."
+      else
+        echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
+      fi
+      ;;
+    uninstall)
+      purge=false
+      [ "${2:-}" = "--purge" ] && purge=true
+      systemctl --user disable --now backdrop.timer 2>/dev/null || true
+      systemctl --user daemon-reload
+      systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
+      rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"
+      rm -rf "$systemd_user_dir/backdrop.timer.d"
+      sudo rm -f /usr/local/bin/backdrop
+      if $purge; then
+        rm -rf "$CONFIG_DIR" "$STATE_DIR"
+        echo "backdrop: uninstalled. Config and cached wallpapers removed."
+      else
+        echo "backdrop: uninstalled."
+        echo "Note: config and cached wallpapers were not removed. Run 'backdrop uninstall --purge' to delete them."
+      fi
+      ;;
+    -h | --help | help)
+      usage
+      ;;
+    *)
+      die "unknown command '$cmd' (try: backdrop help)"
+      ;;
+  esac
+fi
