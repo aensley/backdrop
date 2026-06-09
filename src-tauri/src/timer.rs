@@ -186,6 +186,17 @@ pub fn disable() -> Result<()> {
 // ── Linux / systemd ──────────────────────────────────────────────────────────
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn host_cmd(cmd: &str) -> Command {
+    if std::path::Path::new("/.flatpak-info").exists() {
+        let mut c = Command::new("flatpak-spawn");
+        c.args(["--host", cmd]);
+        c
+    } else {
+        Command::new(cmd)
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn apply_timer_time(time: &str) -> Result<()> {
     let dropin_dir = dirs::config_dir()
         .ok_or_else(|| anyhow::anyhow!("no config dir"))?
@@ -197,14 +208,14 @@ pub fn apply_timer_time(time: &str) -> Result<()> {
     let content = format!("[Timer]\nOnCalendar=\nOnCalendar=*-*-* {time}:00\n");
     std::fs::write(dropin_dir.join("time.conf"), content)?;
 
-    Command::new("systemctl").args(["--user", "daemon-reload"]).status()?;
+    host_cmd("systemctl").args(["--user", "daemon-reload"]).status()?;
     Ok(())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn enable(time: &str) -> Result<()> {
     apply_timer_time(time)?;
-    Command::new("systemctl")
+    host_cmd("systemctl")
         .args(["--user", "enable", "--now", "backdrop.timer"])
         .status()?;
     Ok(())
@@ -212,7 +223,7 @@ pub fn enable(time: &str) -> Result<()> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn is_active() -> bool {
-    Command::new("systemctl")
+    host_cmd("systemctl")
         .args(["--user", "is-active", "--quiet", "backdrop.timer"])
         .status()
         .map(|s| s.success())
@@ -221,7 +232,7 @@ pub fn is_active() -> bool {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn restart() -> Result<()> {
-    Command::new("systemctl")
+    host_cmd("systemctl")
         .args(["--user", "restart", "backdrop.timer"])
         .status()?;
     Ok(())
@@ -229,10 +240,10 @@ pub fn restart() -> Result<()> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn disable() -> Result<()> {
-    Command::new("systemctl")
+    host_cmd("systemctl")
         .args(["--user", "disable", "--now", "backdrop.timer"])
         .status()
         .ok();
-    Command::new("systemctl").args(["--user", "daemon-reload"]).status()?;
+    host_cmd("systemctl").args(["--user", "daemon-reload"]).status()?;
     Ok(())
 }
