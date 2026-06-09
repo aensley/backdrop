@@ -197,10 +197,20 @@ fn host_cmd(cmd: &str) -> Command {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn systemd_dropin_dir() -> Option<std::path::PathBuf> {
+    // Snap redirects XDG_CONFIG_HOME into the snap container dir, so dirs::config_dir()
+    // returns the wrong path. Systemd user timers must live under the real ~/.config.
+    let base = if std::env::var_os("SNAP").is_some() {
+        dirs::home_dir()?.join(".config")
+    } else {
+        dirs::config_dir()?
+    };
+    Some(base.join("systemd/user/backdrop.timer.d"))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn apply_timer_time(time: &str) -> Result<()> {
-    let dropin_dir = dirs::config_dir()
-        .ok_or_else(|| anyhow::anyhow!("no config dir"))?
-        .join("systemd/user/backdrop.timer.d");
+    let dropin_dir = systemd_dropin_dir().ok_or_else(|| anyhow::anyhow!("no config dir"))?;
 
     std::fs::create_dir_all(&dropin_dir)?;
 
