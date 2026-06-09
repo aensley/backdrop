@@ -2,6 +2,7 @@ pub mod cinnamon;
 pub mod cosmic;
 pub mod gnome;
 pub mod kde;
+pub mod lxqt;
 #[cfg(target_os = "macos")]
 pub mod macos;
 pub mod mate;
@@ -21,6 +22,7 @@ pub enum DesktopEnv {
     Cosmic,
     Gnome,
     Kde,
+    LxQt,
     Mate,
     Xfce,
     Unknown,
@@ -42,6 +44,8 @@ pub fn detect_de() -> DesktopEnv {
         DesktopEnv::Gnome
     } else if combined.contains("KDE") {
         DesktopEnv::Kde
+    } else if combined.contains("LXQT") {
+        DesktopEnv::LxQt
     } else if combined.contains("MATE") {
         DesktopEnv::Mate
     } else if combined.contains("XFCE") {
@@ -64,6 +68,7 @@ pub fn detect_de_name() -> String {
         DesktopEnv::Cosmic => "cosmic".to_string(),
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
+        DesktopEnv::LxQt => "lxqt".to_string(),
         DesktopEnv::Mate => "mate".to_string(),
         DesktopEnv::Xfce => "xfce".to_string(),
         DesktopEnv::Unknown => "unknown".to_string(),
@@ -97,6 +102,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
         DesktopEnv::Cosmic => cosmic::set(file, option),
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
+        DesktopEnv::LxQt => lxqt::set(file, option),
         DesktopEnv::Mate => mate::set(file, option),
         DesktopEnv::Xfce => xfce::set(file, option),
         DesktopEnv::Unknown => {
@@ -108,6 +114,9 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
                 return Ok(());
             }
             if kde::set(file, option).is_ok() {
+                return Ok(());
+            }
+            if lxqt::set(file, option).is_ok() {
                 return Ok(());
             }
             if mate::set(file, option).is_ok() {
@@ -134,6 +143,7 @@ pub fn current_option() -> Option<String> {
         DesktopEnv::Cosmic => cosmic::current_option(),
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
+        DesktopEnv::LxQt => lxqt::current_option(),
         DesktopEnv::Mate => mate::current_option(),
         DesktopEnv::Xfce => xfce::current_option(),
         DesktopEnv::Unknown => None,
