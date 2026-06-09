@@ -12,9 +12,22 @@ fn fill_mode(option: &str) -> u8 {
     }
 }
 
+/// Inside a Flatpak sandbox, KDE tools (qdbus, plasma-apply-wallpaperimage) are
+/// not present in the GNOME runtime. flatpak-spawn --host escapes the sandbox and
+/// runs the command on the host, where those tools exist on a KDE session.
+fn host_cmd(cmd: &str) -> Command {
+    if std::path::Path::new("/.flatpak-info").exists() {
+        let mut c = Command::new("flatpak-spawn");
+        c.args(["--host", cmd]);
+        c
+    } else {
+        Command::new(cmd)
+    }
+}
+
 fn find_qdbus() -> Option<String> {
     for cmd in ["qdbus6", "qdbus"] {
-        if Command::new("which").arg(cmd).output().map(|o| o.status.success()).unwrap_or(false) {
+        if host_cmd("which").arg(cmd).output().map(|o| o.status.success()).unwrap_or(false) {
             return Some(cmd.to_string());
         }
     }
@@ -36,7 +49,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
                d.writeConfig('FillMode',{fm});\
              }}"
         );
-        let status = Command::new(&qdbus)
+        let status = host_cmd(&qdbus)
             .args(["org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", &script])
             .status()?;
         if status.success() {
@@ -45,15 +58,13 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
     }
 
     // Fallback: plasma-apply-wallpaperimage (Plasma 5.21+, no FillMode control)
-    if Command::new("which")
+    if host_cmd("which")
         .arg("plasma-apply-wallpaperimage")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
     {
-        Command::new("plasma-apply-wallpaperimage")
-            .arg(file)
-            .status()?;
+        host_cmd("plasma-apply-wallpaperimage").arg(file).status()?;
         return Ok(());
     }
 
@@ -65,7 +76,7 @@ pub fn current_option() -> Option<String> {
     let script = "var d=desktops()[0];\
                   d.currentConfigGroup=['Wallpaper','org.kde.image','General'];\
                   print(d.readConfig('FillMode'));";
-    let out = Command::new(&qdbus)
+    let out = host_cmd(&qdbus)
         .args(["org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
         .output()
         .ok()?;
