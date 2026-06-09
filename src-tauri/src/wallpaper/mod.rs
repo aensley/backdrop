@@ -5,6 +5,7 @@ pub mod kde;
 pub mod macos;
 #[cfg(target_os = "windows")]
 pub mod windows;
+pub mod xfce;
 
 use anyhow::{bail, Result};
 use chrono::Local;
@@ -17,6 +18,7 @@ pub enum DesktopEnv {
     Cinnamon,
     Gnome,
     Kde,
+    Xfce,
     Unknown,
 }
 
@@ -34,6 +36,8 @@ pub fn detect_de() -> DesktopEnv {
         DesktopEnv::Gnome
     } else if combined.contains("KDE") {
         DesktopEnv::Kde
+    } else if combined.contains("XFCE") {
+        DesktopEnv::Xfce
     } else {
         DesktopEnv::Unknown
     }
@@ -51,6 +55,7 @@ pub fn detect_de_name() -> String {
         DesktopEnv::Cinnamon => "cinnamon".to_string(),
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
+        DesktopEnv::Xfce => "xfce".to_string(),
         DesktopEnv::Unknown => "unknown".to_string(),
     }
 }
@@ -81,6 +86,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
         DesktopEnv::Cinnamon => cinnamon::set(file, option),
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
+        DesktopEnv::Xfce => xfce::set(file, option),
         DesktopEnv::Unknown => {
             // Best-effort fallback: try each method
             if cinnamon::set(file, option).is_ok() {
@@ -90,6 +96,9 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
                 return Ok(());
             }
             if kde::set(file, option).is_ok() {
+                return Ok(());
+            }
+            if xfce::set(file, option).is_ok() {
                 return Ok(());
             }
             bail!("unsupported desktop environment; set XDG_CURRENT_DESKTOP")
@@ -109,6 +118,7 @@ pub fn current_option() -> Option<String> {
         DesktopEnv::Cinnamon => cinnamon::current_option(),
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
+        DesktopEnv::Xfce => xfce::current_option(),
         DesktopEnv::Unknown => None,
     }
 }
