@@ -3,6 +3,7 @@ pub mod gnome;
 pub mod kde;
 #[cfg(target_os = "macos")]
 pub mod macos;
+pub mod mate;
 #[cfg(target_os = "windows")]
 pub mod windows;
 pub mod xfce;
@@ -18,6 +19,7 @@ pub enum DesktopEnv {
     Cinnamon,
     Gnome,
     Kde,
+    Mate,
     Xfce,
     Unknown,
 }
@@ -36,6 +38,8 @@ pub fn detect_de() -> DesktopEnv {
         DesktopEnv::Gnome
     } else if combined.contains("KDE") {
         DesktopEnv::Kde
+    } else if combined.contains("MATE") {
+        DesktopEnv::Mate
     } else if combined.contains("XFCE") {
         DesktopEnv::Xfce
     } else {
@@ -55,6 +59,7 @@ pub fn detect_de_name() -> String {
         DesktopEnv::Cinnamon => "cinnamon".to_string(),
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
+        DesktopEnv::Mate => "mate".to_string(),
         DesktopEnv::Xfce => "xfce".to_string(),
         DesktopEnv::Unknown => "unknown".to_string(),
     }
@@ -86,6 +91,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
         DesktopEnv::Cinnamon => cinnamon::set(file, option),
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
+        DesktopEnv::Mate => mate::set(file, option),
         DesktopEnv::Xfce => xfce::set(file, option),
         DesktopEnv::Unknown => {
             // Best-effort fallback: try each method
@@ -96,6 +102,9 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
                 return Ok(());
             }
             if kde::set(file, option).is_ok() {
+                return Ok(());
+            }
+            if mate::set(file, option).is_ok() {
                 return Ok(());
             }
             if xfce::set(file, option).is_ok() {
@@ -118,6 +127,7 @@ pub fn current_option() -> Option<String> {
         DesktopEnv::Cinnamon => cinnamon::current_option(),
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
+        DesktopEnv::Mate => mate::current_option(),
         DesktopEnv::Xfce => xfce::current_option(),
         DesktopEnv::Unknown => None,
     }
