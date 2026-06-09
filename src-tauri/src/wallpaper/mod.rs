@@ -1,4 +1,5 @@
 pub mod cinnamon;
+pub mod cosmic;
 pub mod gnome;
 pub mod kde;
 #[cfg(target_os = "macos")]
@@ -17,6 +18,7 @@ use crate::{config, config::Config, image, screen, sources};
 
 pub enum DesktopEnv {
     Cinnamon,
+    Cosmic,
     Gnome,
     Kde,
     Mate,
@@ -34,6 +36,8 @@ pub fn detect_de() -> DesktopEnv {
 
     if combined.contains("CINNAMON") {
         DesktopEnv::Cinnamon
+    } else if combined.contains("COSMIC") {
+        DesktopEnv::Cosmic
     } else if combined.contains("GNOME") {
         DesktopEnv::Gnome
     } else if combined.contains("KDE") {
@@ -57,6 +61,7 @@ pub fn detect_de_name() -> String {
     #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Cinnamon => "cinnamon".to_string(),
+        DesktopEnv::Cosmic => "cosmic".to_string(),
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
         DesktopEnv::Mate => "mate".to_string(),
@@ -89,6 +94,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
     #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Cinnamon => cinnamon::set(file, option),
+        DesktopEnv::Cosmic => cosmic::set(file, option),
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
         DesktopEnv::Mate => mate::set(file, option),
@@ -125,6 +131,7 @@ pub fn current_option() -> Option<String> {
     #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Cinnamon => cinnamon::current_option(),
+        DesktopEnv::Cosmic => cosmic::current_option(),
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
         DesktopEnv::Mate => mate::current_option(),
