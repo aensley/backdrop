@@ -1,3 +1,4 @@
+pub mod cinnamon;
 pub mod gnome;
 pub mod kde;
 #[cfg(target_os = "macos")]
@@ -13,6 +14,7 @@ use std::time::Duration;
 use crate::{config, config::Config, image, screen, sources};
 
 pub enum DesktopEnv {
+    Cinnamon,
     Gnome,
     Kde,
     Unknown,
@@ -26,7 +28,9 @@ pub fn detect_de() -> DesktopEnv {
     )
     .to_uppercase();
 
-    if combined.contains("GNOME") {
+    if combined.contains("CINNAMON") {
+        DesktopEnv::Cinnamon
+    } else if combined.contains("GNOME") {
         DesktopEnv::Gnome
     } else if combined.contains("KDE") {
         DesktopEnv::Kde
@@ -44,6 +48,7 @@ pub fn detect_de_name() -> String {
 
     #[cfg(target_os = "linux")]
     match detect_de() {
+        DesktopEnv::Cinnamon => "cinnamon".to_string(),
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
         DesktopEnv::Unknown => "unknown".to_string(),
@@ -73,10 +78,14 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
 
     #[cfg(target_os = "linux")]
     match detect_de() {
+        DesktopEnv::Cinnamon => cinnamon::set(file, option),
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
         DesktopEnv::Unknown => {
             // Best-effort fallback: try each method
+            if cinnamon::set(file, option).is_ok() {
+                return Ok(());
+            }
             if gnome::set(file, option).is_ok() {
                 return Ok(());
             }
@@ -97,6 +106,7 @@ pub fn current_option() -> Option<String> {
 
     #[cfg(target_os = "linux")]
     match detect_de() {
+        DesktopEnv::Cinnamon => cinnamon::current_option(),
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
         DesktopEnv::Unknown => None,
