@@ -14,11 +14,14 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
         }
 
         "set" | "use" => {
-            let src = args.get(1).ok_or_else(|| {
-                anyhow::anyhow!("set: choose a source ({})", sources::VALID_SOURCES.join(", "))
-            })?;
+            let src = args
+                .get(1)
+                .ok_or_else(|| anyhow::anyhow!("set: choose a source ({})", sources::VALID_SOURCES.join(", ")))?;
             if !sources::is_valid(src) {
-                bail!("set: unknown source '{src}' (valid: {})", sources::VALID_SOURCES.join(", "));
+                bail!(
+                    "set: unknown source '{src}' (valid: {})",
+                    sources::VALID_SOURCES.join(", ")
+                );
             }
             config::cfg_set("source", src)?;
             println!("backdrop: active source is now '{src}'");
@@ -55,7 +58,10 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
             println!("Display method:    {method}");
             println!("Zoom min coverage: {}", cfg.zoom_min_coverage);
             let sar = crate::screen::get_ar(cfg.screen_aspect_ratio);
-            println!("Screen aspect:     {sar:.5} (config fallback: {})", cfg.screen_aspect_ratio);
+            println!(
+                "Screen aspect:     {sar:.5} (config fallback: {})",
+                cfg.screen_aspect_ratio
+            );
             println!("Config file:       {}", config::config_file().display());
         }
 
@@ -89,7 +95,10 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
             std::fs::remove_dir_all(systemd_user.join("backdrop.timer.d")).ok();
 
             // Remove binary (may need sudo)
-            Command::new("sudo").args(["rm", "-f", "/usr/local/bin/backdrop"]).status().ok();
+            Command::new("sudo")
+                .args(["rm", "-f", "/usr/local/bin/backdrop"])
+                .status()
+                .ok();
 
             if purge {
                 std::fs::remove_dir_all(config::config_dir()).ok();

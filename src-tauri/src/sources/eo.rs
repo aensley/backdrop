@@ -20,10 +20,7 @@ pub async fn resolve(client: &Client) -> Result<Vec<String>> {
         None => "",
     };
 
-    let re = Regex::new(
-        r#"(?i)https://assets\.science\.nasa\.gov/dynamicimage/[^"?]+\.(jpg|jpeg|png)"#,
-    )
-    .unwrap();
+    let re = Regex::new(r#"(?i)https://assets\.science\.nasa\.gov/dynamicimage/[^"?]+\.(jpg|jpeg|png)"#).unwrap();
 
     let mut urls = Vec::new();
     if let Some(m) = re.find(item) {

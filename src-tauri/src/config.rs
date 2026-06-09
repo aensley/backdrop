@@ -104,7 +104,7 @@ pub fn cfg_get(key: &str) -> Option<String> {
     content
         .lines()
         .filter_map(|l| parse_value(l, key))
-        .last()
+        .next_back()
         .filter(|v| !v.is_empty())
 }
 

@@ -15,8 +15,8 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "commit": "czg",
-    "lint": "prettier --check .",
-    "lint:fix": "prettier --write .",
+    "lint": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "lint:fix": "prettier --write . && cargo fmt --manifest-path src-tauri/Cargo.toml && cargo clippy --fix --manifest-path src-tauri/Cargo.toml",
     "prepare": "npx simple-git-hooks",
     "update": "npx npm-check-updates -u && npm update"
   },

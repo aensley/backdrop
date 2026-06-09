@@ -85,7 +85,9 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
 
     let candidates = sources::resolve(src, cfg).await?;
     if candidates.is_empty() {
-        return Ok(format!("backdrop: {src} has no image today (e.g. APOD video day); wallpaper unchanged."));
+        return Ok(format!(
+            "backdrop: {src} has no image today (e.g. APOD video day); wallpaper unchanged."
+        ));
     }
 
     let date = Local::now().format("%Y-%m-%d");
@@ -94,11 +96,7 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
     let client = sources::build_client(cfg)?;
     let mut downloaded = false;
     for url in &candidates {
-        let result = client
-            .get(url)
-            .timeout(Duration::from_secs(120))
-            .send()
-            .await;
+        let result = client.get(url).timeout(Duration::from_secs(120)).send().await;
         if let Ok(resp) = result {
             if let Ok(bytes) = resp.bytes().await {
                 if std::fs::write(&dest, &bytes).is_ok() {
@@ -122,7 +120,10 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
         .map(|(w, h)| format!("{w}x{h}"))
         .unwrap_or_default();
 
-    Ok(format!("backdrop: set from {src} [{dims}, {option}] -> {}", dest.display()))
+    Ok(format!(
+        "backdrop: set from {src} [{dims}, {option}] -> {}",
+        dest.display()
+    ))
 }
 
 fn cleanup_old_images() {

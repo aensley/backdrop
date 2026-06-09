@@ -27,7 +27,12 @@ fn host_cmd(cmd: &str) -> Command {
 
 fn find_qdbus() -> Option<String> {
     for cmd in ["qdbus6", "qdbus"] {
-        if host_cmd("which").arg(cmd).output().map(|o| o.status.success()).unwrap_or(false) {
+        if host_cmd("which")
+            .arg(cmd)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
             return Some(cmd.to_string());
         }
     }
@@ -50,7 +55,12 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
              }}"
         );
         let status = host_cmd(&qdbus)
-            .args(["org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", &script])
+            .args([
+                "org.kde.plasmashell",
+                "/PlasmaShell",
+                "org.kde.PlasmaShell.evaluateScript",
+                &script,
+            ])
             .status()?;
         if status.success() {
             return Ok(());
@@ -77,7 +87,12 @@ pub fn current_option() -> Option<String> {
                   d.currentConfigGroup=['Wallpaper','org.kde.image','General'];\
                   print(d.readConfig('FillMode'));";
     let out = host_cmd(&qdbus)
-        .args(["org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+        .args([
+            "org.kde.plasmashell",
+            "/PlasmaShell",
+            "org.kde.PlasmaShell.evaluateScript",
+            script,
+        ])
         .output()
         .ok()?;
     let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
