@@ -1,5 +1,7 @@
 pub mod gnome;
 pub mod kde;
+#[cfg(target_os = "macos")]
+pub mod macos;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
@@ -34,10 +36,13 @@ pub fn detect_de() -> DesktopEnv {
 }
 
 pub fn detect_de_name() -> String {
+    #[cfg(target_os = "macos")]
+    return "macos".to_string();
+
     #[cfg(target_os = "windows")]
     return "windows".to_string();
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Gnome => "gnome".to_string(),
         DesktopEnv::Kde => "kde".to_string(),
@@ -60,10 +65,13 @@ pub fn pick_option(file: &Path, cfg: &Config) -> String {
 }
 
 pub fn set(file: &Path, option: &str) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    return macos::set(file, option);
+
     #[cfg(target_os = "windows")]
     return windows::set(file, option);
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Gnome => gnome::set(file, option),
         DesktopEnv::Kde => kde::set(file, option),
@@ -81,10 +89,13 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
 }
 
 pub fn current_option() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    return macos::current_option();
+
     #[cfg(target_os = "windows")]
     return windows::current_option();
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     match detect_de() {
         DesktopEnv::Gnome => gnome::current_option(),
         DesktopEnv::Kde => kde::current_option(),
