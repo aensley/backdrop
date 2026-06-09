@@ -1,0 +1,44 @@
+name: backdrop
+base: core24
+summary: Set a new desktop wallpaper every day
+description: |
+  backdrop fetches a daily image from one of several curated sources
+  and sets it as your desktop wallpaper. It automatically picks the
+  best display mode based on the image dimensions and your screen
+  aspect ratio.
+
+grade: stable
+confinement: strict
+adopt-info: backdrop
+
+# KDE: qdbus is not available under strict confinement with the GNOME base.
+# Adding a dbus plug for org.kde.plasmashell would enable it, but requires
+# Snap Store review. Until then, KDE users should use the .deb, .rpm, or
+# AppImage release instead.
+
+apps:
+  backdrop:
+    command: bin/backdrop
+    extensions:
+      - gnome # provides WebKitGTK, GTK, and gsettings support
+    plugs:
+      - network # fetch wallpaper images
+      - home # config (~/.config/backdrop) and cache (~/.cache/backdrop)
+      - gsettings
+
+parts:
+  backdrop:
+    plugin: rust
+    source: .
+    override-pull: |
+      craftctl default
+      VERSION=$(grep -m1 '^version' src-tauri/Cargo.toml | sed 's/.*"\(.*\)"/\1/')
+      craftctl set version="$VERSION"
+    override-build: |
+      cargo build --release --manifest-path src-tauri/Cargo.toml
+      install -Dm755 src-tauri/target/release/backdrop "$SNAPCRAFT_PART_INSTALL/bin/backdrop"
+    build-packages:
+      - libwebkit2gtk-4.1-dev
+      - libssl-dev
+      - libgtk-3-dev
+      - pkg-config
