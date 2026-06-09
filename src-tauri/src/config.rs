@@ -68,12 +68,13 @@ pub fn ensure_config() -> Result<()> {
          # Crop tolerance for choosing zoom vs scaled.\n\
          zoom_min_coverage = {zmc}\n\n\
          # HTTP User-Agent string sent with all requests.\n\
-         # user_agent = backdrop/2.0 (personal daily wallpaper app)\n\n\
+         user_agent = {ua}\n\n\
          # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).\n\
          # Also settable with: backdrop set-time HH:MM\n\
          timer_time = {timer}\n",
         sar = d.screen_aspect_ratio,
         zmc = d.zoom_min_coverage,
+        ua = d.user_agent,
         timer = d.timer_time,
     );
 

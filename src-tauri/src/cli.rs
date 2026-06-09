@@ -87,9 +87,16 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
             let purge = args.get(1).map(|s| s == "--purge").unwrap_or(false);
             timer::disable()?;
 
-            let systemd_user = dirs::config_dir()
-                .ok_or_else(|| anyhow::anyhow!("no config dir"))?
-                .join("systemd/user");
+            // Snap redirects XDG_CONFIG_HOME into the container dir; systemd unit files
+            // live under the real ~/.config, so bypass the redirect here.
+            let real_config = if std::env::var_os("SNAP").is_some() {
+                dirs::home_dir()
+                    .ok_or_else(|| anyhow::anyhow!("no home dir"))?
+                    .join(".config")
+            } else {
+                dirs::config_dir().ok_or_else(|| anyhow::anyhow!("no config dir"))?
+            };
+            let systemd_user = real_config.join("systemd/user");
             std::fs::remove_file(systemd_user.join("backdrop.timer")).ok();
             std::fs::remove_file(systemd_user.join("backdrop.service")).ok();
             std::fs::remove_dir_all(systemd_user.join("backdrop.timer.d")).ok();
