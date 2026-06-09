@@ -127,9 +127,65 @@ pub fn disable() -> Result<()> {
     Ok(())
 }
 
+// ── Windows / Task Scheduler ─────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+const TASK_NAME: &str = "Backdrop";
+
+#[cfg(target_os = "windows")]
+pub fn apply_timer_time(time: &str) -> Result<()> {
+    // Update the start time of the existing task if one is registered.
+    // If not yet registered, the time is already saved to backdrop's config
+    // and will be used the next time `enable` is called.
+    if is_active() {
+        Command::new("schtasks")
+            .args(["/change", "/tn", TASK_NAME, "/st", time])
+            .status()?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+pub fn enable(time: &str) -> Result<()> {
+    let exe = std::env::current_exe()?.to_string_lossy().into_owned();
+    // Quote the exe path to handle spaces; schtasks interprets /tr as a shell command string.
+    let tr = format!("\"{exe}\" update");
+    Command::new("schtasks")
+        .args([
+            "/create", "/f", "/tn", TASK_NAME, "/tr", &tr, "/sc", "daily", "/st", time,
+        ])
+        .status()?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+pub fn is_active() -> bool {
+    Command::new("schtasks")
+        .args(["/query", "/tn", TASK_NAME])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+pub fn restart() -> Result<()> {
+    // apply_timer_time already updates the task in-place via /change;
+    // no separate restart step is needed for Task Scheduler.
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+pub fn disable() -> Result<()> {
+    Command::new("schtasks")
+        .args(["/delete", "/tn", TASK_NAME, "/f"])
+        .status()
+        .ok();
+    Ok(())
+}
+
 // ── Linux / systemd ──────────────────────────────────────────────────────────
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn apply_timer_time(time: &str) -> Result<()> {
     let dropin_dir = dirs::config_dir()
         .ok_or_else(|| anyhow::anyhow!("no config dir"))?
@@ -145,7 +201,7 @@ pub fn apply_timer_time(time: &str) -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn enable(time: &str) -> Result<()> {
     apply_timer_time(time)?;
     Command::new("systemctl")
@@ -154,7 +210,7 @@ pub fn enable(time: &str) -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn is_active() -> bool {
     Command::new("systemctl")
         .args(["--user", "is-active", "--quiet", "backdrop.timer"])
@@ -163,7 +219,7 @@ pub fn is_active() -> bool {
         .unwrap_or(false)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn restart() -> Result<()> {
     Command::new("systemctl")
         .args(["--user", "restart", "backdrop.timer"])
@@ -171,7 +227,7 @@ pub fn restart() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn disable() -> Result<()> {
     Command::new("systemctl")
         .args(["--user", "disable", "--now", "backdrop.timer"])
