@@ -23,7 +23,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
     let image_props: Vec<&str> = props_text.lines().filter(|l| l.ends_with("/last-image")).collect();
 
     if image_props.is_empty() {
-        // No backdrop properties exist yet — create defaults for screen0/monitor0/workspace0
+        // No backdrop properties exist yet. Create defaults for screen0/monitor0/workspace0
         let base = "/backdrop/screen0/monitor0/workspace0";
         xfconf_set(&format!("{base}/last-image"), &path_str, Some("string"))?;
         xfconf_set(&format!("{base}/image-style"), style, Some("int"))?;
@@ -35,7 +35,7 @@ pub fn set(file: &Path, option: &str) -> Result<()> {
         }
     }
 
-    // Signal xfdesktop to reload — ignore errors (e.g. running headless)
+    // Signal xfdesktop to reload. Ignore errors (e.g. running headless)
     Command::new("xfdesktop").args(["--reload"]).status().ok();
 
     Ok(())

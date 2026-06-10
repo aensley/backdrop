@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# backdrop installer — detects your platform, downloads the latest release from
+# backdrop installer - detects your platform, downloads the latest release from
 # GitHub, and installs the appropriate package.
 #
 # Usage (pipe from curl):

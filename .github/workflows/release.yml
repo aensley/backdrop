@@ -5,7 +5,7 @@
 #      release. A draft release does NOT create the git tag yet.
 #   2. build-tauri runs only when a release was created, builds every platform,
 #      and uploads installers to that draft release by its release ID.
-#   3. publish-release flips the draft to published — but ONLY if every build
+#   3. publish-release flips the draft to published but ONLY if every build
 #      leg succeeded. Publishing is what finally creates the v* git tag.
 
 name: release
@@ -33,7 +33,7 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
-          # Default token is sufficient — nothing here needs to trigger
+          # Default token is sufficient. Nothing here needs to trigger
           # another workflow.
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
@@ -66,7 +66,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       # The draft release has no tag ref yet, so we just build the merge commit
-      # that triggered this run — it already carries the bumped version.
+      # that triggered this run. It already carries the bumped version.
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -105,7 +105,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # OPTIONAL — UPX, Linux only. Compressing the macOS binary breaks code
+      # OPTIONAL - UPX, Linux only. Compressing the macOS binary breaks code
       # signing / notarization; on Windows it commonly triggers AV/SmartScreen.
       # Needs a two-step build (compile -> upx -> bundle), so it's left out of
       # the single tauri-action call below.
@@ -131,7 +131,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Upload straight to the existing draft by ID — unambiguous, and works
+          # Upload straight to the existing draft by ID. Unambiguous, and works
           # even though the tag ref doesn't exist yet.
           releaseId: ${{ needs.release-please.outputs.release_id }}
           # Keep it a draft; the publish-release job below un-drafts it.
