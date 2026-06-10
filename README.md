@@ -95,7 +95,7 @@ backdrop <command>
 | -------- | ------------------------------------------------------------------------------------------- |
 | Linux    | systemd `--user` timer (`backdrop.timer` / `backdrop.service` in `~/.config/systemd/user/`) |
 | macOS    | launchd agent (`~/Library/LaunchAgents/com.andrewensley.backdrop.plist`)                    |
-| Windows  | Task Scheduler task named **Backdrop**                                                      |
+| Windows  | Task Scheduler task named **backdrop**                                                      |
 
 Use `backdrop set-time HH:MM` to change when it fires. The timer is disabled as part of `backdrop uninstall`; there is no standalone `disable` command. To disable manually, use your platform's scheduler directly (e.g. `systemctl --user disable --now backdrop.timer` on Linux).
 

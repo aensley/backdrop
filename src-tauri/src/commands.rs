@@ -55,6 +55,7 @@ pub async fn get_status() -> Result<Value, String> {
         "config_file": config::config_file().to_string_lossy(),
         "timer_time": cfg.timer_time,
         "timer_active": timer::is_active(),
+        "user_agent": cfg.user_agent,
     }))
 }
 
@@ -75,4 +76,40 @@ pub async fn enable_timer() -> Result<String, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
     timer::enable(&cfg.timer_time).map_err(|e| e.to_string())?;
     Ok(format!("Daily timer enabled (runs at {}).", cfg.timer_time))
+}
+
+#[command]
+pub async fn disable_timer() -> Result<String, String> {
+    timer::disable().map_err(|e| e.to_string())?;
+    Ok("Daily timer disabled.".to_string())
+}
+
+#[command]
+pub async fn set_config_value(key: String, value: String) -> Result<String, String> {
+    match key.as_str() {
+        "screen_aspect_ratio" => {
+            let v: f64 = value.parse().map_err(|_| format!("'{value}' is not a valid number"))?;
+            if v <= 0.0 {
+                return Err("screen_aspect_ratio must be a positive number".to_string());
+            }
+            config::cfg_set(&key, &value).map_err(|e| e.to_string())?;
+            Ok("Screen aspect ratio updated.".to_string())
+        }
+        "zoom_min_coverage" => {
+            let v: f64 = value.parse().map_err(|_| format!("'{value}' is not a valid number"))?;
+            if v <= 0.0 || v > 1.0 {
+                return Err("zoom_min_coverage must be between 0 and 1".to_string());
+            }
+            config::cfg_set(&key, &value).map_err(|e| e.to_string())?;
+            Ok("Zoom min coverage updated.".to_string())
+        }
+        "user_agent" => {
+            if value.trim().is_empty() {
+                return Err("user_agent cannot be empty".to_string());
+            }
+            config::cfg_set(&key, &value).map_err(|e| e.to_string())?;
+            Ok("User agent updated.".to_string())
+        }
+        _ => Err(format!("unknown config key '{key}'")),
+    }
 }

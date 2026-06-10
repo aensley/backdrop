@@ -1,3 +1,5 @@
-/node_modules/
-/src-tauri/target/
 /flatpak/generated-cargo-sources.json
+/node_modules/
+/src-tauri/icons/android/
+/src-tauri/icons/ios/
+/src-tauri/target/

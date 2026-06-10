@@ -9,6 +9,13 @@ pub mod wallpaper;
 
 pub fn run_gui() {
     tauri::Builder::default()
+        .setup(|app| {
+            use tauri::Manager;
+            let window = app.get_webview_window("main").expect("no main window");
+            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+            window.set_icon(icon)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::update,
             commands::set_source,
@@ -16,6 +23,8 @@ pub fn run_gui() {
             commands::get_status,
             commands::random_wallpaper,
             commands::enable_timer,
+            commands::disable_timer,
+            commands::set_config_value,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

@@ -130,7 +130,7 @@ pub fn disable() -> Result<()> {
 // ── Windows / Task Scheduler ─────────────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
-const TASK_NAME: &str = "Backdrop";
+const TASK_NAME: &str = "backdrop";
 
 #[cfg(target_os = "windows")]
 pub fn apply_timer_time(time: &str) -> Result<()> {

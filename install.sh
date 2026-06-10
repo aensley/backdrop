@@ -84,7 +84,7 @@ install_systemd_units() {
   if [ ! -f "$dir/backdrop.service" ]; then
     cat > "$dir/backdrop.service" <<'EOF'
 [Unit]
-Description=Backdrop wallpaper updater
+Description=backdrop wallpaper updater
 After=network.target
 
 [Service]
