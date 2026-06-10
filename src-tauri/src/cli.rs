@@ -54,6 +54,14 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
             if let Some(img) = wallpaper::latest_image() {
                 println!("Last image:        {}", img.display());
             }
+            if let Some(meta) = wallpaper::latest_meta() {
+                if let Some(title) = meta.title {
+                    println!("Image title:       {title}");
+                }
+                if let Some(page_url) = meta.page_url {
+                    println!("Image source:      {page_url}");
+                }
+            }
             let method = wallpaper::current_option().unwrap_or_else(|| "unknown".to_string());
             println!("Display method:    {method}");
             println!("Zoom min coverage: {}", cfg.zoom_min_coverage);
@@ -140,10 +148,10 @@ fn print_usage() {
   help              Show this help
 
 Sources:
-  iotd   NASA Image of the Day (default)
-  apod   Astronomy Picture of the Day
-  bing   Bing image of the day (4K)
+  bing   Bing image of the day
+  apod   NASA Astronomy Picture of the Day
   eo     NASA Earth Observatory Image of the Day
+  iotd   NASA Image of the Day (default)
   wmc    Wikimedia Commons Picture of the Day"
     );
 }

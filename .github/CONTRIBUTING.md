@@ -70,10 +70,21 @@ Both commands cover the full stack. There is no need to run `cargo fmt` or `carg
 1. Create `src-tauri/src/sources/<key>.rs` and export:
 
    ```rust
-   pub async fn resolve(client: &Client) -> Result<Vec<String>>
+   pub async fn resolve(client: &Client) -> Result<ImageInfo>
    ```
 
-   Return candidate image URLs in preference order. The caller tries each until one downloads.
+   `ImageInfo` (defined in `sources/mod.rs`) carries candidate image URLs plus optional metadata:
+
+   ```rust
+   pub struct ImageInfo {
+       pub urls: Vec<String>,        // preference order; caller tries each until one downloads
+       pub title: Option<String>,    // image title from the source site
+       pub description: Option<String>, // caption / copyright / explanation
+       pub page_url: Option<String>, // link back to the source page
+   }
+   ```
+
+   Extract metadata from whatever the source API provides (RSS `<title>`, JSON fields, HTML `<title>` tag, etc.). Use the `clean_text` and `extract_tag` helpers in `sources/mod.rs` for stripping CDATA and HTML from RSS content.
 
 2. In `src-tauri/src/sources/mod.rs`:
    - Add `pub mod <key>;`
@@ -81,6 +92,8 @@ Both commands cover the full stack. There is no need to run `cargo fmt` or `carg
    - Add a match arm in `resolve()`
 
 3. Document the new source in `README.md` (Sources table).
+
+Metadata is automatically saved alongside each downloaded image as a `.json` sidecar and surfaced in `backdrop status`, `backdrop update`, and the `get_image_meta` Tauri command.
 
 ## Adding a new wallpaper backend (desktop environment)
 

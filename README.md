@@ -76,16 +76,34 @@ After either method, run `backdrop enable` to start the daily timer.
 backdrop <command>
 ```
 
-| Command                | Description                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `update` / `refresh`   | Refresh wallpaper from the active source (default)                        |
-| `set <source>` / `use` | Switch active source and refresh now                                      |
-| `set-time <HH:MM>`     | Set the daily run time (24-hour); restarts timer if active                |
-| `status`               | Show active source, last image, display method, screen aspect, and config |
-| `random`               | Refresh from a randomly chosen source (does not change active source)     |
-| `enable`               | Enable the daily timer (see [Scheduling](#scheduling))                    |
-| `uninstall`            | Remove backdrop; `--purge` also deletes config and cached images          |
-| `help`                 | Show help                                                                 |
+| Command                | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `update` / `refresh`   | Refresh wallpaper from the active source (default)                      |
+| `set <source>` / `use` | Switch active source and refresh now                                    |
+| `set-time <HH:MM>`     | Set the daily run time (24-hour); restarts timer if active              |
+| `status`               | Show active source, last image, image title, display method, and config |
+| `random`               | Refresh from a randomly chosen source (does not change active source)   |
+| `enable`               | Enable the daily timer (see [Scheduling](#scheduling))                  |
+| `uninstall`            | Remove backdrop; `--purge` also deletes config and cached images        |
+| `help`                 | Show help                                                               |
+
+## Sources
+
+| Key    | Name                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| `bing` | Bing Image of the Day<br>https://www.bing.com/                                                                |
+| `apod` | NASA Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                              |
+| `eo`   | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
+| `iotd` | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
+| `wmc`  | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
+
+Switch sources at any time:
+
+```bash
+backdrop set apod
+```
+
+This will also immediately update the wallpaper from the new source.
 
 ## Scheduling
 
@@ -98,24 +116,6 @@ backdrop <command>
 | Windows  | Task Scheduler task named **backdrop**                                                      |
 
 Use `backdrop set-time HH:MM` to change when it fires. The timer is disabled as part of `backdrop uninstall`; there is no standalone `disable` command. To disable manually, use your platform's scheduler directly (e.g. `systemctl --user disable --now backdrop.timer` on Linux).
-
-## Sources
-
-| Key    | Name                                                                                                          |
-| ------ | ------------------------------------------------------------------------------------------------------------- |
-| `iotd` | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
-| `apod` | Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                                   |
-| `bing` | Bing Image of the Day (4K)<br>https://www.bing.com/                                                           |
-| `eo`   | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
-| `wmc`  | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
-
-Switch sources at any time:
-
-```bash
-backdrop set apod
-```
-
-This will also immediately update the wallpaper from the new source.
 
 ## Configuration
 
@@ -137,7 +137,7 @@ The config file lives at `~/.config/backdrop/config` and is created on first run
 | macOS    | `~/Library/Application Support/backdrop/config` | `~/Library/Application Support/backdrop/` |
 | Windows  | `%APPDATA%\Roaming\backdrop\config`             | `%LOCALAPPDATA%\backdrop\`                |
 
-Cached images older than 14 days are pruned automatically on each update.
+Cached images older than 14 days are pruned automatically on each update. Each image has a companion `.json` sidecar file that stores the title, description, and source URL retrieved from the image's origin site; these are pruned on the same schedule.
 
 ## Uninstallation
 

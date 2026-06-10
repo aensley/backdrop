@@ -3,7 +3,9 @@ use regex::Regex;
 use reqwest::Client;
 use std::time::Duration;
 
-pub async fn resolve(client: &Client) -> Result<Vec<String>> {
+use super::{extract_tag, ImageInfo};
+
+pub async fn resolve(client: &Client) -> Result<ImageInfo> {
     let feed = client
         .get("https://earthobservatory.nasa.gov/feeds/image-of-the-day.rss")
         .timeout(Duration::from_secs(30))
@@ -29,5 +31,20 @@ pub async fn resolve(client: &Client) -> Result<Vec<String>> {
         urls.push(base);
     }
 
-    Ok(urls)
+    let footer_re = Regex::new(r"\s*The post .+ appeared first on [^.]+\.\s*$").unwrap();
+    let description = extract_tag(item, "description").and_then(|d| {
+        let trimmed = footer_re.replace(&d, "").trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+
+    Ok(ImageInfo {
+        urls,
+        title: extract_tag(item, "title"),
+        description,
+        page_url: extract_tag(item, "link"),
+    })
 }

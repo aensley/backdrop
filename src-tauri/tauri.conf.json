@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "backdrop",
-        "width": 620,
-        "height": 700,
+        "width": 690,
+        "height": 800,
         "resizable": true
       }
     ],

@@ -21,6 +21,8 @@ pub fn run_gui() {
             commands::set_source,
             commands::set_time,
             commands::get_status,
+            commands::get_image_meta,
+            commands::open_url,
             commands::random_wallpaper,
             commands::enable_timer,
             commands::disable_timer,

@@ -85,6 +85,36 @@ pub async fn disable_timer() -> Result<String, String> {
 }
 
 #[command]
+pub fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub async fn get_image_meta() -> Result<serde_json::Value, String> {
+    let meta = wallpaper::latest_meta().unwrap_or_default();
+    Ok(serde_json::json!({
+        "title": meta.title,
+        "description": meta.description,
+        "page_url": meta.page_url,
+    }))
+}
+
+#[command]
 pub async fn set_config_value(key: String, value: String) -> Result<String, String> {
     match key.as_str() {
         "screen_aspect_ratio" => {

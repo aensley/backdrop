@@ -12,10 +12,18 @@ pub mod xfce;
 
 use anyhow::{bail, Result};
 use chrono::Local;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
 
 use crate::{config, config::Config, image, screen, sources};
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct ImageMeta {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub page_url: Option<String>,
+}
 
 pub enum DesktopEnv {
     Cinnamon,
@@ -155,8 +163,8 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
         bail!("unknown source '{src}' (valid: {})", sources::VALID_SOURCES.join(", "));
     }
 
-    let candidates = sources::resolve(src, cfg).await?;
-    if candidates.is_empty() {
+    let info = sources::resolve(src, cfg).await?;
+    if info.urls.is_empty() {
         return Ok(format!(
             "backdrop: {src} has no image today (e.g. APOD video day); wallpaper unchanged."
         ));
@@ -167,7 +175,7 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
 
     let client = sources::build_client(cfg)?;
     let mut downloaded = false;
-    for url in &candidates {
+    for url in &info.urls {
         let result = client.get(url).timeout(Duration::from_secs(120)).send().await;
         if let Ok(resp) = result {
             if let Ok(bytes) = resp.bytes().await {
@@ -183,6 +191,15 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
         bail!("could not download any image for {src}");
     }
 
+    let meta = ImageMeta {
+        title: info.title,
+        description: info.description,
+        page_url: info.page_url,
+    };
+    if let Ok(json) = serde_json::to_string(&meta) {
+        std::fs::write(dest.with_extension("json"), json).ok();
+    }
+
     let option = pick_option(&dest, cfg);
     set(&dest, &option)?;
 
@@ -192,10 +209,17 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
         .map(|(w, h)| format!("{w}x{h}"))
         .unwrap_or_default();
 
-    Ok(format!(
-        "backdrop: set from {src} [{dims}, {option}] -> {}",
-        dest.display()
-    ))
+    let mut msg = format!("backdrop: set from {src} [{dims}, {option}] -> {}", dest.display());
+    if let Some(ref title) = meta.title {
+        msg.push('\n');
+        msg.push_str(title);
+    }
+    if let Some(ref desc) = meta.description {
+        msg.push('\n');
+        msg.push_str(desc);
+    }
+
+    Ok(msg)
 }
 
 fn cleanup_old_images() {
@@ -204,7 +228,8 @@ fn cleanup_old_images() {
     if let Ok(entries) = std::fs::read_dir(&state_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("jpg") {
+            let ext = path.extension().and_then(|e| e.to_str());
+            if ext == Some("jpg") || ext == Some("json") {
                 if let Ok(meta) = entry.metadata() {
                     if let Ok(modified) = meta.modified() {
                         if modified < cutoff {
@@ -225,4 +250,10 @@ pub fn latest_image() -> Option<std::path::PathBuf> {
         .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("jpg"))
         .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
         .map(|e| e.path())
+}
+
+pub fn latest_meta() -> Option<ImageMeta> {
+    let image = latest_image()?;
+    let json = std::fs::read_to_string(image.with_extension("json")).ok()?;
+    serde_json::from_str(&json).ok()
 }
