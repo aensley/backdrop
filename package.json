@@ -1,0 +1,81 @@
+{
+  "name": "backdrop",
+  "private": true,
+  "homepage": "https://github.com/aensley/backdrop#readme",
+  "bugs": {
+    "url": "https://github.com/aensley/backdrop/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aensley/backdrop.git"
+  },
+  "license": "MIT",
+  "scripts": {
+    "commit": "czg",
+    "test": "shellcheck src/backdrop.sh install.sh test/backdrop.bats && bats test/",
+    "lint": "prettier --check . && ~/go/bin/shfmt -d -i 2 -ci src/backdrop.sh install.sh test/backdrop.bats",
+    "lint:fix": "prettier --write . && ~/go/bin/shfmt -w -i 2 -ci src/backdrop.sh install.sh test/backdrop.bats",
+    "prepare": "npx simple-git-hooks",
+    "update": "npx npm-check-updates -u && npm update"
+  },
+  "devDependencies": {
+    "bats": "^1.13.0",
+    "czg": "^1.13.1",
+    "prettier": "^3.8.3",
+    "simple-git-hooks": "^2.13.1"
+  },
+  "allowScripts": {
+    "simple-git-hooks@2.13.1": true
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "plugins": [
+      [
+        "@semantic-release/commit-analyzer",
+        {
+          "preset": "conventionalcommits"
+        }
+      ],
+      [
+        "@semantic-release/release-notes-generator",
+        {
+          "preset": "conventionalcommits"
+        }
+      ],
+      "@semantic-release/github"
+    ]
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "printWidth": 120,
+    "useTabs": false,
+    "endOfLine": "lf",
+    "trailingComma": "none",
+    "semi": false,
+    "singleQuote": true,
+    "arrowParens": "always",
+    "bracketSameLine": true,
+    "bracketSpacing": true,
+    "embeddedLanguageFormatting": "auto",
+    "htmlWhitespaceSensitivity": "css",
+    "insertPragma": false,
+    "jsxSingleQuote": false,
+    "proseWrap": "preserve",
+    "quoteProps": "as-needed",
+    "requirePragma": false,
+    "vueIndentScriptAndStyle": false
+  },
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git",
+      "type": "conventional",
+      "useEmoji": true
+    }
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run lint && npm run test",
+    "prepare-commit-msg": "exec < /dev/tty && node_modules/.bin/czg --hook \"$1\" \"$2\" || true"
+  }
+}
