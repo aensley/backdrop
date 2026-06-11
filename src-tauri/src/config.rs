@@ -4,7 +4,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub source: String,
+    pub sources: Vec<String>,
+    pub rotate_interval: u32,
     pub screen_aspect_ratio: f64,
     pub zoom_min_coverage: f64,
     pub user_agent: String,
@@ -14,7 +15,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            source: "iotd".to_string(),
+            sources: vec!["iotd".to_string()],
+            rotate_interval: 0,
             screen_aspect_ratio: 1.7778,
             zoom_min_coverage: 0.55,
             user_agent: "backdrop/2.0 (personal daily wallpaper app)".to_string(),
@@ -59,9 +61,12 @@ pub fn ensure_config() -> Result<()> {
 
     let content = format!(
         "# backdrop configuration  (key = value; lines starting with # are ignored)\n\n\
-         # Active wallpaper source: iotd | apod | bing | wmc | eo\n\
+         # Active wallpaper source(s): comma-separated list, e.g. iotd,apod\n\
+         # Valid values: iotd | apod | bing | wmc | eo\n\
          # Also settable with: backdrop set <source>\n\
-         source = {source}\n\n\
+         sources = {source}\n\n\
+         # Minutes between source rotations when multiple sources are selected (0 = off).\n\
+         rotate_interval = {ri}\n\n\
          # Screen aspect ratio used only if auto-detection fails.\n\
          # 16:9 = 1.7778   16:10 = 1.6   21:9 = 2.3333   4:3 = 1.3333\n\
          screen_aspect_ratio = {sar}\n\n\
@@ -72,6 +77,7 @@ pub fn ensure_config() -> Result<()> {
          # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).\n\
          # Also settable with: backdrop set-time HH:MM\n\
          timer_time = {timer}\n",
+        ri = d.rotate_interval,
         sar = d.screen_aspect_ratio,
         zmc = d.zoom_min_coverage,
         ua = d.user_agent,
@@ -143,8 +149,23 @@ pub fn cfg_set(key: &str, value: &str) -> Result<()> {
 pub fn load() -> Result<Config> {
     ensure_config()?;
     let d = Config::default();
+
+    // Prefer `sources` (comma-separated list); fall back to legacy single `source` key.
+    let sources: Vec<String> = if let Some(v) = cfg_get("sources") {
+        v.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    } else if let Some(v) = cfg_get("source") {
+        vec![v]
+    } else {
+        d.sources.clone()
+    };
+    let sources = if sources.is_empty() { d.sources.clone() } else { sources };
+
     Ok(Config {
-        source: cfg_get("source").unwrap_or(d.source),
+        sources,
+        rotate_interval: cfg_get("rotate_interval").and_then(|v| v.parse().ok()).unwrap_or(0),
         screen_aspect_ratio: cfg_get("screen_aspect_ratio")
             .and_then(|v| v.parse().ok())
             .unwrap_or(d.screen_aspect_ratio),

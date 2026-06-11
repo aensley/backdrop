@@ -126,11 +126,12 @@ The config file lives at `~/.config/backdrop/config` and is created on first run
 
 | Key                   | Default                                       | Description                                                                                                    |
 | --------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `source`              | `iotd`                                        | Active wallpaper source                                                                                        |
+| `sources`             | `iotd`                                        | Comma-separated list of active sources, e.g. `iotd,apod,bing`                                                  |
+| `rotate_interval`     | `0`                                           | Minutes between source rotations. `0` disables rotation (uses daily schedule instead)                          |
 | `screen_aspect_ratio` | `1.7778`                                      | Fallback aspect ratio if auto-detect fails (16:9=1.7778, 16:10=1.6, 21:9=2.3333, 4:3=1.3333)                   |
 | `zoom_min_coverage`   | `0.55`                                        | Crop tolerance: if filling the screen would crop more than this fraction of the image, use scaled mode instead |
 | `user_agent`          | `backdrop/2.0 (personal daily wallpaper app)` | HTTP User-Agent sent with all requests                                                                         |
-| `timer_time`          | `08:00`                                       | Time of day to run the daily update (24-hour HH:MM)                                                            |
+| `timer_time`          | `08:00`                                       | Time of day to run the daily update (24-hour HH:MM); ignored when `rotate_interval > 0`                        |
 
 ## File locations
 

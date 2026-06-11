@@ -22,16 +22,27 @@ fn gui_domain() -> String {
 }
 
 #[cfg(target_os = "macos")]
-fn write_plist(time: &str) -> Result<()> {
+fn write_plist(timer_time: &str, rotate_interval: u32) -> Result<()> {
     let path = plist_path().ok_or_else(|| anyhow::anyhow!("cannot find home directory"))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
     let exe = std::env::current_exe()?.to_string_lossy().into_owned();
-    let mut parts = time.splitn(2, ':');
-    let hour: u32 = parts.next().unwrap_or("8").parse().unwrap_or(8);
-    let minute: u32 = parts.next().unwrap_or("0").parse().unwrap_or(0);
+
+    let schedule_xml = if rotate_interval > 0 {
+        format!(
+            "\t<key>StartInterval</key>\n\t<integer>{}</integer>",
+            rotate_interval * 60
+        )
+    } else {
+        let mut parts = timer_time.splitn(2, ':');
+        let hour: u32 = parts.next().unwrap_or("8").parse().unwrap_or(8);
+        let minute: u32 = parts.next().unwrap_or("0").parse().unwrap_or(0);
+        format!(
+            "\t<key>StartCalendarInterval</key>\n\t<dict>\n\t\t<key>Hour</key>\n\t\t<integer>{hour}</integer>\n\t\t<key>Minute</key>\n\t\t<integer>{minute}</integer>\n\t</dict>"
+        )
+    };
 
     let plist = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -45,13 +56,7 @@ fn write_plist(time: &str) -> Result<()> {
 		<string>{exe}</string>
 		<string>update</string>
 	</array>
-	<key>StartCalendarInterval</key>
-	<dict>
-		<key>Hour</key>
-		<integer>{hour}</integer>
-		<key>Minute</key>
-		<integer>{minute}</integer>
-	</dict>
+{schedule_xml}
 </dict>
 </plist>
 "#
@@ -62,7 +67,7 @@ fn write_plist(time: &str) -> Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn apply_timer_time(time: &str) -> Result<()> {
+pub fn apply_timer_schedule(timer_time: &str, rotate_interval: u32) -> Result<()> {
     let active = is_active();
     if active {
         let path = plist_path().ok_or_else(|| anyhow::anyhow!("no home dir"))?;
@@ -71,7 +76,7 @@ pub fn apply_timer_time(time: &str) -> Result<()> {
             .status()
             .ok();
     }
-    write_plist(time)?;
+    write_plist(timer_time, rotate_interval)?;
     if active {
         let path = plist_path().ok_or_else(|| anyhow::anyhow!("no home dir"))?;
         Command::new("launchctl")
@@ -82,8 +87,8 @@ pub fn apply_timer_time(time: &str) -> Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn enable(time: &str) -> Result<()> {
-    write_plist(time)?;
+pub fn enable(timer_time: &str, rotate_interval: u32) -> Result<()> {
+    write_plist(timer_time, rotate_interval)?;
     let path = plist_path().ok_or_else(|| anyhow::anyhow!("no home dir"))?;
     Command::new("launchctl")
         .args(["bootstrap", &gui_domain(), &path.to_string_lossy()])
@@ -133,28 +138,64 @@ pub fn disable() -> Result<()> {
 const TASK_NAME: &str = "backdrop";
 
 #[cfg(target_os = "windows")]
-pub fn apply_timer_time(time: &str) -> Result<()> {
-    // Update the start time of the existing task if one is registered.
-    // If not yet registered, the time is already saved to backdrop's config
-    // and will be used the next time `enable` is called.
-    if is_active() {
+pub fn apply_timer_schedule(timer_time: &str, rotate_interval: u32) -> Result<()> {
+    // Only update if the task is already registered; callers use enable() for first-time setup.
+    if !is_active() {
+        return Ok(());
+    }
+    let exe = std::env::current_exe()?.to_string_lossy().into_owned();
+    let tr = format!("\"{exe}\" update");
+    if rotate_interval > 0 {
         Command::new("schtasks")
-            .args(["/change", "/tn", TASK_NAME, "/st", time])
+            .args([
+                "/create",
+                "/f",
+                "/tn",
+                TASK_NAME,
+                "/tr",
+                &tr,
+                "/sc",
+                "minute",
+                "/mo",
+                &rotate_interval.to_string(),
+            ])
+            .status()?;
+    } else {
+        Command::new("schtasks")
+            .args([
+                "/create", "/f", "/tn", TASK_NAME, "/tr", &tr, "/sc", "daily", "/st", timer_time,
+            ])
             .status()?;
     }
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
-pub fn enable(time: &str) -> Result<()> {
+pub fn enable(timer_time: &str, rotate_interval: u32) -> Result<()> {
     let exe = std::env::current_exe()?.to_string_lossy().into_owned();
-    // Quote the exe path to handle spaces; schtasks interprets /tr as a shell command string.
     let tr = format!("\"{exe}\" update");
-    Command::new("schtasks")
-        .args([
-            "/create", "/f", "/tn", TASK_NAME, "/tr", &tr, "/sc", "daily", "/st", time,
-        ])
-        .status()?;
+    if rotate_interval > 0 {
+        Command::new("schtasks")
+            .args([
+                "/create",
+                "/f",
+                "/tn",
+                TASK_NAME,
+                "/tr",
+                &tr,
+                "/sc",
+                "minute",
+                "/mo",
+                &rotate_interval.to_string(),
+            ])
+            .status()?;
+    } else {
+        Command::new("schtasks")
+            .args([
+                "/create", "/f", "/tn", TASK_NAME, "/tr", &tr, "/sc", "daily", "/st", timer_time,
+            ])
+            .status()?;
+    }
     Ok(())
 }
 
@@ -169,8 +210,7 @@ pub fn is_active() -> bool {
 
 #[cfg(target_os = "windows")]
 pub fn restart() -> Result<()> {
-    // apply_timer_time already updates the task in-place via /change;
-    // no separate restart step is needed for Task Scheduler.
+    // apply_timer_schedule recreates the task in-place; no separate restart step needed.
     Ok(())
 }
 
@@ -209,13 +249,16 @@ fn systemd_dropin_dir() -> Option<std::path::PathBuf> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub fn apply_timer_time(time: &str) -> Result<()> {
+pub fn apply_timer_schedule(timer_time: &str, rotate_interval: u32) -> Result<()> {
     let dropin_dir = systemd_dropin_dir().ok_or_else(|| anyhow::anyhow!("no config dir"))?;
-
     std::fs::create_dir_all(&dropin_dir)?;
 
     // Empty OnCalendar= clears the inherited value before setting the new one.
-    let content = format!("[Timer]\nOnCalendar=\nOnCalendar=*-*-* {time}:00\n");
+    let content = if rotate_interval > 0 {
+        format!("[Timer]\nOnCalendar=\nOnBootSec={rotate_interval}min\nOnUnitActiveSec={rotate_interval}min\n")
+    } else {
+        format!("[Timer]\nOnCalendar=\nOnCalendar=*-*-* {timer_time}:00\n")
+    };
     std::fs::write(dropin_dir.join("time.conf"), content)?;
 
     host_cmd("systemctl").args(["--user", "daemon-reload"]).status()?;
@@ -223,8 +266,8 @@ pub fn apply_timer_time(time: &str) -> Result<()> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub fn enable(time: &str) -> Result<()> {
-    apply_timer_time(time)?;
+pub fn enable(timer_time: &str, rotate_interval: u32) -> Result<()> {
+    apply_timer_schedule(timer_time, rotate_interval)?;
     host_cmd("systemctl")
         .args(["--user", "enable", "--now", "backdrop.timer"])
         .status()?;

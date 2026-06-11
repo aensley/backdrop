@@ -18,6 +18,7 @@ pub fn run_gui() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::update,
+            commands::apply_sources,
             commands::set_source,
             commands::set_time,
             commands::get_status,

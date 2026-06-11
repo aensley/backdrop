@@ -116,7 +116,26 @@ Metadata is automatically saved alongside each downloaded image as a `.json` sid
 
 `wallpaper::apply(src, cfg, force)` checks for a locally cached image before hitting the network. The cache key is `<source>-<YYYY-MM-DD>.jpg` in the state directory. If the file exists and `force` is `false`, the download is skipped entirely and the existing file is re-applied. Pass `force: true` to bypass the cache and always fetch a fresh image.
 
-This applies to all callers: the `update`, `set`, and `random` CLI commands (via `--force`), and the corresponding Tauri commands (`update`, `set_source`, `random_wallpaper`) via the optional `force` parameter.
+This applies to all callers: the `update`, `set`, and `random` CLI commands (via `--force`), and the corresponding Tauri commands (`update`, `set_source`, `random_wallpaper`, `apply_sources`) via the optional `force` parameter.
+
+## Multiple sources and rotation
+
+`Config.sources` is a `Vec<String>` of enabled source keys. `Config.rotate_interval` is the number of minutes between automatic source changes (0 = disabled).
+
+`wallpaper::pick_source(cfg)` is the single point that resolves which source to use at any given moment:
+
+- Single source or `rotate_interval == 0`: always returns `sources[0]`.
+- Multiple sources with `rotate_interval > 0`: computes `sources[floor(unix_minutes / interval) % n]`. This is stateless and produces the same answer throughout the current window, so every invocation during that window applies the same source.
+
+When `rotate_interval > 0`, `timer::enable`/`apply_timer_schedule` configures the platform scheduler to fire every N minutes instead of at a fixed daily time:
+
+| Platform | Interval mechanism                        |
+| -------- | ----------------------------------------- |
+| Linux    | `OnBootSec=Nmin` + `OnUnitActiveSec=Nmin` |
+| macOS    | `StartInterval` (seconds) in the plist    |
+| Windows  | `schtasks /sc minute /mo N`               |
+
+All of `timer::enable`, `apply_timer_schedule`, and the CLI `enable` / `set-time` commands accept both `timer_time` and `rotate_interval` and write the correct platform config based on which mode is active.
 
 ## Architecture constraints
 

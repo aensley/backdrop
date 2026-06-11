@@ -280,6 +280,26 @@ pub fn latest_meta() -> Option<ImageMeta> {
     serde_json::from_str(&json).ok()
 }
 
+/// Picks the active source from cfg.sources based on rotation.
+/// When rotate_interval is 0 (or only one source), always returns the first source.
+/// Otherwise uses time-based selection so the same source is returned for the full window.
+pub fn pick_source(cfg: &Config) -> &str {
+    let sources = &cfg.sources;
+    if sources.is_empty() {
+        return "iotd";
+    }
+    if sources.len() == 1 || cfg.rotate_interval == 0 {
+        return &sources[0];
+    }
+    let minutes = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        / 60;
+    let idx = ((minutes / cfg.rotate_interval as u64) as usize) % sources.len();
+    &sources[idx]
+}
+
 /// Returns today's cached image for the given source, if it exists.
 pub fn current_image(src: &str) -> Option<std::path::PathBuf> {
     let date = Local::now().format("%Y-%m-%d");

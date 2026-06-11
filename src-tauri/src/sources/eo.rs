@@ -7,7 +7,7 @@ use super::{extract_tag, ImageInfo};
 
 pub async fn resolve(client: &Client) -> Result<ImageInfo> {
     let feed = client
-        .get("https://earthobservatory.nasa.gov/feeds/image-of-the-day.rss")
+        .get("https://science.nasa.gov/feed/earth-observatory/image-of-the-day")
         .timeout(Duration::from_secs(30))
         .send()
         .await?
@@ -26,7 +26,11 @@ pub async fn resolve(client: &Client) -> Result<ImageInfo> {
 
     let mut urls = Vec::new();
     if let Some(m) = re.find(item) {
-        let base = m.as_str().to_string();
+        let base = m
+            .as_str()
+            .replace("&#039;", "'")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"");
         urls.push(format!("{base}?w=3840"));
         urls.push(base);
     }

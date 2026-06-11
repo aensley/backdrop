@@ -299,6 +299,53 @@
         margin-top: 0;
       }
 
+      /* ── Source checkboxes ── */
+      .source-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .source-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--text);
+        user-select: none;
+      }
+
+      .source-check input[type='checkbox'] {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      /* ── Rotate row ── */
+      .rotate-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .rotate-row label {
+        color: #b8b8d0;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .rotate-row input {
+        width: 64px;
+      }
+
+      .rotate-row span {
+        font-size: 14px;
+        color: var(--text-dim);
+      }
+
       /* ── Last image hint ── */
       .last-image {
         margin-top: 8px;
@@ -445,19 +492,37 @@
       <div class="card">
         <div class="card-title">Wallpaper</div>
         <div class="row">
-          <label for="source-sel">Source</label>
+          <label>Sources</label>
           <div class="source-controls">
-            <div class="source-top">
-              <select id="source-sel">
-                <option value="bing">Bing Image of the Day</option>
-                <option value="apod">NASA Astronomy Picture of the Day</option>
-                <option value="eo">NASA Earth Observatory</option>
-                <option value="iotd">NASA Image of the Day</option>
-                <option value="wmc">Wikimedia Commons</option>
-              </select>
-              <button id="btn-apply-source" class="primary">Apply</button>
+            <div class="source-list">
+              <label class="source-check">
+                <input type="checkbox" value="bing" />
+                Bing Image of the Day
+              </label>
+              <label class="source-check">
+                <input type="checkbox" value="apod" />
+                NASA Astronomy Picture of the Day
+              </label>
+              <label class="source-check">
+                <input type="checkbox" value="eo" />
+                NASA Earth Observatory
+              </label>
+              <label class="source-check">
+                <input type="checkbox" value="iotd" />
+                NASA Image of the Day
+              </label>
+              <label class="source-check">
+                <input type="checkbox" value="wmc" />
+                Wikimedia Commons
+              </label>
+            </div>
+            <div class="rotate-row">
+              <label for="rotate-interval">Rotate every</label>
+              <input type="number" id="rotate-interval" min="0" step="1" placeholder="0" />
+              <span>min (0 = off)</span>
             </div>
             <div class="btn-row">
+              <button id="btn-apply-sources" class="primary">Apply</button>
               <button id="btn-update">Update Now</button>
               <button id="btn-force-update">Force Update</button>
               <button id="btn-random">Random</button>
@@ -613,10 +678,16 @@
         }
 
         // Header chips
-        document.getElementById('chip-source').textContent = SOURCE_NAMES[s.source] ?? s.source
+        const chipSource = document.getElementById('chip-source')
+        if (s.rotate_interval > 0 && s.sources.length > 1) {
+          chipSource.textContent = `${SOURCE_NAMES[s.active_source] ?? s.active_source} ↻`
+        } else {
+          chipSource.textContent = SOURCE_NAMES[s.active_source] ?? s.active_source
+        }
         const timerChip = document.getElementById('chip-timer')
         if (s.timer_active) {
-          timerChip.textContent = `Timer on · ${s.timer_time}`
+          timerChip.textContent =
+            s.rotate_interval > 0 ? `Rotate · ${s.rotate_interval}m` : `Timer on · ${s.timer_time}`
           timerChip.classList.add('on')
         } else {
           timerChip.textContent = 'Timer off'
@@ -624,8 +695,13 @@
         }
         document.getElementById('chip-de').textContent = s.desktop_env ?? '-'
 
-        // Wallpaper card
-        document.getElementById('source-sel').value = s.source
+        // Wallpaper card - source checkboxes
+        for (const cb of document.querySelectorAll('.source-check input[type="checkbox"]')) {
+          cb.checked = s.sources.includes(cb.value)
+        }
+        const riEl = document.getElementById('rotate-interval')
+        if (!riEl.dataset.dirty) riEl.value = s.rotate_interval
+
         if (s.latest_image) {
           const fname = s.latest_image.replace(/.*[\\/]/, '')
           document.getElementById('last-image').textContent = `Last: ${fname}`
@@ -647,9 +723,24 @@
         if (!uaEl.dataset.dirty) uaEl.value = s.user_agent
 
         await loadMeta()
+        scheduleRotationRefresh(s.rotate_interval)
       }
 
-      // Mark advanced fields dirty when edited so loadStatus doesn't clobber them
+      // Auto-refresh UI at each rotation boundary so metadata stays current.
+      let rotationTimer = null
+      function scheduleRotationRefresh(rotateInterval) {
+        clearTimeout(rotationTimer)
+        rotationTimer = null
+        if (rotateInterval <= 0) return
+        const intervalMs = rotateInterval * 60 * 1000
+        const msUntilNext = intervalMs - (Date.now() % intervalMs) + 500
+        rotationTimer = setTimeout(loadStatus, msUntilNext)
+      }
+
+      // Mark fields dirty when edited so loadStatus doesn't clobber them
+      document.getElementById('rotate-interval').addEventListener('input', (e) => {
+        e.target.dataset.dirty = '1'
+      })
       for (const id of ['adv-sar', 'adv-zmc', 'adv-ua']) {
         document.getElementById(id).addEventListener('input', (e) => {
           e.target.dataset.dirty = '1'
@@ -658,10 +749,18 @@
 
       // ── Wallpaper handlers ────────────────────────────────────────────────────
 
-      document.getElementById('btn-apply-source').addEventListener('click', async (e) => {
-        const source = document.getElementById('source-sel').value
+      document.getElementById('btn-apply-sources').addEventListener('click', async (e) => {
+        const sources = [...document.querySelectorAll('.source-check input[type="checkbox"]:checked')].map(
+          (cb) => cb.value
+        )
+        if (sources.length === 0) {
+          toast('Select at least one source.', true)
+          return
+        }
+        const rotateInterval = parseInt(document.getElementById('rotate-interval').value, 10) || 0
+        delete document.getElementById('rotate-interval').dataset.dirty
         await run(e.target, async () => {
-          const msg = await invoke('set_source', { source })
+          const msg = await invoke('apply_sources', { sources, rotateInterval, force: false })
           await loadStatus()
           return msg
         })

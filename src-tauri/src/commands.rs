@@ -6,7 +6,34 @@ use crate::{config, screen, sources, timer, wallpaper};
 #[command]
 pub async fn update(force: Option<bool>) -> Result<String, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    wallpaper::apply(&cfg.source, &cfg, force.unwrap_or(false))
+    let src = wallpaper::pick_source(&cfg).to_string();
+    wallpaper::apply(&src, &cfg, force.unwrap_or(false))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn apply_sources(sources: Vec<String>, rotate_interval: u32, force: Option<bool>) -> Result<String, String> {
+    if sources.is_empty() {
+        return Err("At least one source must be selected.".to_string());
+    }
+    for src in &sources {
+        if !crate::sources::is_valid(src) {
+            return Err(format!(
+                "unknown source '{src}' (valid: {})",
+                crate::sources::VALID_SOURCES.join(", ")
+            ));
+        }
+    }
+    config::cfg_set("sources", &sources.join(",")).map_err(|e| e.to_string())?;
+    config::cfg_set("rotate_interval", &rotate_interval.to_string()).map_err(|e| e.to_string())?;
+    let cfg = config::load().map_err(|e| e.to_string())?;
+    if timer::is_active() {
+        timer::apply_timer_schedule(&cfg.timer_time, cfg.rotate_interval).map_err(|e| e.to_string())?;
+        timer::restart().map_err(|e| e.to_string())?;
+    }
+    let src = wallpaper::pick_source(&cfg).to_string();
+    wallpaper::apply(&src, &cfg, force.unwrap_or(false))
         .await
         .map_err(|e| e.to_string())
 }
@@ -19,7 +46,7 @@ pub async fn set_source(source: String, force: Option<bool>) -> Result<String, S
             sources::VALID_SOURCES.join(", ")
         ));
     }
-    config::cfg_set("source", &source).map_err(|e| e.to_string())?;
+    config::cfg_set("sources", &source).map_err(|e| e.to_string())?;
     let cfg = config::load().map_err(|e| e.to_string())?;
     let msg = wallpaper::apply(&source, &cfg, force.unwrap_or(false))
         .await
@@ -34,7 +61,8 @@ pub async fn set_time(time: String) -> Result<String, String> {
         return Err("Expected HH:MM (24-hour format), e.g. 08:00".to_string());
     }
     config::cfg_set("timer_time", &time).map_err(|e| e.to_string())?;
-    timer::apply_timer_time(&time).map_err(|e| e.to_string())?;
+    let cfg = config::load().map_err(|e| e.to_string())?;
+    timer::apply_timer_schedule(&time, cfg.rotate_interval).map_err(|e| e.to_string())?;
     if timer::is_active() {
         timer::restart().map_err(|e| e.to_string())?;
         Ok(format!("Timer time set to {time} and timer restarted."))
@@ -46,12 +74,15 @@ pub async fn set_time(time: String) -> Result<String, String> {
 #[command]
 pub async fn get_status() -> Result<Value, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    let latest = wallpaper::current_image(&cfg.source)
+    let active_source = wallpaper::pick_source(&cfg).to_string();
+    let latest = wallpaper::current_image(&active_source)
         .or_else(wallpaper::latest_image)
         .map(|p| p.to_string_lossy().to_string());
     let sar = screen::get_ar(cfg.screen_aspect_ratio);
     Ok(serde_json::json!({
-        "source": cfg.source,
+        "sources": cfg.sources,
+        "active_source": active_source,
+        "rotate_interval": cfg.rotate_interval,
         "latest_image": latest,
         "desktop_env": wallpaper::detect_de_name(),
         "display_method": wallpaper::current_option(),
@@ -82,8 +113,15 @@ pub async fn random_wallpaper(force: Option<bool>) -> Result<String, String> {
 #[command]
 pub async fn enable_timer() -> Result<String, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    timer::enable(&cfg.timer_time).map_err(|e| e.to_string())?;
-    Ok(format!("Daily timer enabled (runs at {}).", cfg.timer_time))
+    timer::enable(&cfg.timer_time, cfg.rotate_interval).map_err(|e| e.to_string())?;
+    if cfg.rotate_interval > 0 {
+        Ok(format!(
+            "Rotation timer enabled (fires every {} min).",
+            cfg.rotate_interval
+        ))
+    } else {
+        Ok(format!("Daily timer enabled (runs at {}).", cfg.timer_time))
+    }
 }
 
 #[command]
@@ -115,7 +153,8 @@ pub fn open_url(url: String) -> Result<(), String> {
 #[command]
 pub async fn get_image_meta() -> Result<serde_json::Value, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    let meta = wallpaper::current_meta(&cfg.source)
+    let active_source = wallpaper::pick_source(&cfg).to_string();
+    let meta = wallpaper::current_meta(&active_source)
         .or_else(wallpaper::latest_meta)
         .unwrap_or_default();
     Ok(serde_json::json!({

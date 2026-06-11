@@ -10,7 +10,8 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
         "update" | "refresh" => {
             let force = args.contains(&"--force".to_string());
             let cfg = config::load()?;
-            let msg = wallpaper::apply(&cfg.source, &cfg, force).await?;
+            let src = wallpaper::pick_source(&cfg).to_string();
+            let msg = wallpaper::apply(&src, &cfg, force).await?;
             println!("{msg}");
         }
 
@@ -25,7 +26,7 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
                 );
             }
             let force = args.contains(&"--force".to_string());
-            config::cfg_set("source", src)?;
+            config::cfg_set("sources", src)?;
             println!("backdrop: active source is now '{src}'");
             let cfg = config::load()?;
             let msg = wallpaper::apply(src, &cfg, force).await?;
@@ -41,7 +42,8 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
                 bail!("set-time: expected HH:MM (24-hour), e.g. 08:00");
             }
             config::cfg_set("timer_time", t)?;
-            timer::apply_timer_time(t)?;
+            let cfg = config::load()?;
+            timer::apply_timer_schedule(t, cfg.rotate_interval)?;
             if timer::is_active() {
                 timer::restart()?;
                 println!("backdrop: timer time set to {t} and timer restarted.");
@@ -52,11 +54,20 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
 
         "status" => {
             let cfg = config::load()?;
-            println!("Active source:     {}", cfg.source);
-            if let Some(img) = wallpaper::latest_image() {
+            let active_src = wallpaper::pick_source(&cfg).to_string();
+            if cfg.sources.len() > 1 {
+                println!("Active sources:    {}", cfg.sources.join(", "));
+                println!("Current source:    {active_src}");
+            } else {
+                println!("Active source:     {active_src}");
+            }
+            if cfg.rotate_interval > 0 {
+                println!("Rotation:          every {} min", cfg.rotate_interval);
+            }
+            if let Some(img) = wallpaper::current_image(&active_src) {
                 println!("Last image:        {}", img.display());
             }
-            if let Some(meta) = wallpaper::latest_meta() {
+            if let Some(meta) = wallpaper::current_meta(&active_src) {
                 if let Some(title) = meta.title {
                     println!("Image title:       {title}");
                 }
@@ -90,8 +101,15 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
 
         "enable" => {
             let cfg = config::load()?;
-            timer::enable(&cfg.timer_time)?;
-            println!("backdrop: daily timer enabled (runs at {}).", cfg.timer_time);
+            timer::enable(&cfg.timer_time, cfg.rotate_interval)?;
+            if cfg.rotate_interval > 0 {
+                println!(
+                    "backdrop: rotation timer enabled (fires every {} min).",
+                    cfg.rotate_interval
+                );
+            } else {
+                println!("backdrop: daily timer enabled (runs at {}).", cfg.timer_time);
+            }
         }
 
         "uninstall" => {
@@ -145,7 +163,7 @@ fn print_usage() {
   set-time <HH:MM>         Set the daily run time (24-hour); restarts timer if active
   status                   Show the active source and last image
   random [--force]         Refresh from a randomly chosen source (does not change active)
-  enable                   Enable the daily systemd --user timer (backdrop.timer)
+  enable                   Enable the daily timer (see backdrop enable)
   uninstall                Remove backdrop from this system
   uninstall --purge        Remove backdrop and delete config and cached wallpapers
   help                     Show this help
