@@ -39,7 +39,7 @@ To run the full test suite (ShellCheck + BATS):
 npm test
 ```
 
-Tests live in `test/backdrop.bats` and cover the pure and file-I/O functions in `src/backdrop.sh`; things like config read/write, source validation, image dimension detection, and wallpaper option selection.
+Tests live in `test/backdrop.bats` and cover the pure and file-I/O functions in `src/backdrop.sh`; things like config read/write, source validation, image dimension detection, and wallpaper option selection. Source resolver functions are tested using a stub `curl` script injected via `PATH`.
 
 ## Linting
 

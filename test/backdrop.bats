@@ -57,7 +57,7 @@ teardown() {
 # ---------------------------------------------------------------------------
 
 @test "is_valid: accepts all built-in sources" {
-  for src in iotd apod bing wmc eo; do
+  for src in iotd apod bing wmc eo earth natgeo; do
     run is_valid "$src"
     [ "$status" -eq 0 ]
   done
@@ -236,4 +236,86 @@ teardown() {
   SCREEN_ASPECT_RATIO="1.7778"
   run pick_picture_option "$FIXTURE_DIR/square.png"
   [ "$output" = "zoom" ]
+}
+
+# ---------------------------------------------------------------------------
+# resolve_earth
+# ---------------------------------------------------------------------------
+
+@test "resolve_earth: returns URL from matching download link" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '<a href="https://cff2.earth.com/uploads/2025/10/01/photo.jpg" target="__blank"></a>'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_earth
+  [ "$status" -eq 0 ]
+  [ "$output" = "https://cff2.earth.com/uploads/2025/10/01/photo.jpg" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_earth: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_earth
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_earth: returns empty output when no download link found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\necho "<html>no image here</html>"\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_earth
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_natgeo
+# ---------------------------------------------------------------------------
+
+@test "resolve_natgeo: returns high-res and base URLs from og:image" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '<meta property="og:image" content="https://i.natgeofe.com/n/abc123/photo.jpg"/>'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_natgeo
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "https://i.natgeofe.com/n/abc123/photo.jpg?w=5120" ]
+  [ "${lines[1]}" = "https://i.natgeofe.com/n/abc123/photo.jpg" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_natgeo: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_natgeo
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_natgeo: returns empty output when no natgeofe og:image found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '<meta property="og:image" content="https://www.nationalgeographic.com/logo.jpg"/>'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_natgeo
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+  rm -rf "$stubdir"
 }

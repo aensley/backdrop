@@ -8,11 +8,13 @@
 # but can also be invoked manually to switch sources or get status info.
 
 # Sources:
-# apod: https://apod.nasa.gov/apod/
-# bing: https://www.bing.com/
-# eo:   https://science.nasa.gov/earth/earth-observatory/image-of-the-day/
-# iotd: https://www.nasa.gov/image-of-the-day/
-# wmc:  https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day
+# apod:   https://apod.nasa.gov/apod/
+# bing:   https://www.bing.com/
+# earth:  https://www.earth.com/gallery/images-of-the-day/
+# eo:     https://science.nasa.gov/earth/earth-observatory/image-of-the-day/
+# iotd:   https://www.nasa.gov/image-of-the-day/
+# natgeo: https://www.nationalgeographic.com/photo-of-the-day/
+# wmc:    https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day
 
 set -euo pipefail
 
@@ -21,7 +23,7 @@ BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONFIG_DIR="$BASE_CONFIG_DIR/backdrop"
 CONFIG_FILE="$CONFIG_DIR/config"
 LEGACY_SOURCE_FILE="$CONFIG_DIR/source" # pre-config-file location of the active source
-VALID_SOURCES=(iotd apod bing wmc eo)
+VALID_SOURCES=(iotd apod bing wmc eo earth natgeo)
 
 # Built-in defaults, can be overriden in the config file.
 # All four live in the config file ($CONFIG_FILE) and can be edited there:
@@ -88,7 +90,7 @@ ensure_config() {
   cat >"$CONFIG_FILE" <<EOF
 # backdrop configuration  (key = value; lines starting with # are ignored)
 
-# Active wallpaper source: iotd | apod | bing | wmc | eo
+# Active wallpaper source: iotd | apod | bing | wmc | eo | earth | natgeo
 # Also settable with: backdrop set <source>
 source = $seed
 
@@ -139,7 +141,7 @@ resolve_iotd() {
   return 0
 }
 
-# Astronomy Picture of the Day
+# NASA Astronomy Picture of the Day
 resolve_apod() {
   local page rel
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://apod.nasa.gov/apod/astropix.html")" || return 1
@@ -190,6 +192,28 @@ resolve_eo() {
   [ -n "$base" ] || return 0
   printf '%s\n' "${base}?w=3840" # ~4K-wide rendering
   printf '%s\n' "$base"          # CDN-default size as fallback
+  return 0
+}
+
+# National Geographic Photo of the Day
+resolve_natgeo() {
+  local page url
+  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.nationalgeographic.com/photo-of-the-day/")" || return 1
+  url="$(grep -oiE 'property="og:image" content="https://i\.natgeofe\.com/[^"]+"' <<<"$page" |
+    sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  [ -n "$url" ] || return 0
+  printf '%s\n' "${url}?w=5120" # max CDN resolution (~4600px wide)
+  printf '%s\n' "$url"          # original as fallback
+  return 0
+}
+
+# Earth.com Image of the Day
+resolve_earth() {
+  local page url
+  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.earth.com/gallery/images-of-the-day/")" || return 1
+  url="$(grep -oiE 'href="(https://cff2\.earth\.com/uploads/[^"]+\.(jpg|jpeg|png))" target="__blank"' <<<"$page" |
+    sed -E 's/href="([^"]+)".*/\1/' | head -1)" || true
+  [ -n "$url" ] && printf '%s\n' "$url"
   return 0
 }
 
@@ -405,11 +429,13 @@ Usage: backdrop <command>
   help              Show this help
 
 Sources:
-  iotd   NASA Image of the Day (default)
-  apod   Astronomy Picture of the Day
-  bing   Bing image of the day (4K)
-  eo     NASA Earth Observatory Image of the Day
-  wmc    Wikimedia Commons Picture of the Day
+  bing    Bing image of the day
+  earth   Earth.com Image of the Day
+  apod    NASA Astronomy Picture of the Day
+  eo      NASA Earth Observatory Image of the Day
+  iotd    NASA Image of the Day (default)
+  natgeo  National Geographic Photo of the Day
+  wmc     Wikimedia Commons Picture of the Day
 EOF
 }
 

@@ -1,13 +1,16 @@
-# backdrop
+# backdrop-cli
 
-[![Version](https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff)](https://github.com/aensley/backdrop/releases)
-[![License](https://img.shields.io/github/license/aensley/backdrop.svg)](https://github.com/aensley/backdrop/blob/main/LICENSE)
+<p align="center">
+  <img src="icon.svg" alt="backdrop" width="128"/><br/>
+  <a href="https://github.com/aensley/backdrop-cli/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop-cli.svg?logo=gnubash&label=backdrop-cli&logoColor=fff" alt="Version"/></a>
+  <a href="https://github.com/aensley/backdrop-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop-cli.svg" alt="License"/></a>
+</p>
 
 Set a new desktop wallpaper every day from various sources.
 
 ## What it does
 
-backdrop fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
+backdrop-cli fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
 
 Run it once manually or let a systemd timer handle it on a schedule.
 
@@ -32,13 +35,13 @@ backdrop supports the following Desktop Environments.
 Install with a single command:
 
 ```bash
-curl -fsSL https://ensl.ee/backdrop | bash
+curl -fsSL https://ensl.ee/backdrop-cli | bash
 ```
 
 Or clone the repo and run the installer locally:
 
 ```bash
-git clone https://github.com/aensley/backdrop.git \
+git clone https://github.com/aensley/backdrop-cli.git \
   && cd backdrop && ./install.sh
 ```
 
@@ -67,13 +70,15 @@ backdrop <command>
 
 ## Sources
 
-| Key    | Name                                                                                                          |
-| ------ | ------------------------------------------------------------------------------------------------------------- |
-| `iotd` | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
-| `apod` | Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                                   |
-| `bing` | Bing Image of the Day (4K)<br>https://www.bing.com/                                                           |
-| `eo`   | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
-| `wmc`  | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
+| Key      | Name                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------- |
+| `bing`   | Bing Image of the Day<br>https://www.bing.com/                                                                |
+| `earth`  | Earth.com Image of the Day<br>https://www.earth.com/gallery/images-of-the-day/                                |
+| `apod`   | NASA Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                              |
+| `eo`     | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
+| `iotd`   | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
+| `natgeo` | National Geographic Photo of the Day<br>https://www.nationalgeographic.com/photo-of-the-day/                  |
+| `wmc`    | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
 
 Switch sources at any time:
 
