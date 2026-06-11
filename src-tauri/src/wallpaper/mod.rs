@@ -279,3 +279,21 @@ pub fn latest_meta() -> Option<ImageMeta> {
     let json = std::fs::read_to_string(image.with_extension("json")).ok()?;
     serde_json::from_str(&json).ok()
 }
+
+/// Returns today's cached image for the given source, if it exists.
+pub fn current_image(src: &str) -> Option<std::path::PathBuf> {
+    let date = Local::now().format("%Y-%m-%d");
+    let path = config::state_dir().join(format!("{src}-{date}.jpg"));
+    if path.exists() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+/// Returns metadata for today's cached image for the given source.
+pub fn current_meta(src: &str) -> Option<ImageMeta> {
+    let image = current_image(src)?;
+    let json = std::fs::read_to_string(image.with_extension("json")).ok()?;
+    serde_json::from_str(&json).ok()
+}

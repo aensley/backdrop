@@ -46,7 +46,9 @@ pub async fn set_time(time: String) -> Result<String, String> {
 #[command]
 pub async fn get_status() -> Result<Value, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    let latest = wallpaper::latest_image().map(|p| p.to_string_lossy().to_string());
+    let latest = wallpaper::current_image(&cfg.source)
+        .or_else(wallpaper::latest_image)
+        .map(|p| p.to_string_lossy().to_string());
     let sar = screen::get_ar(cfg.screen_aspect_ratio);
     Ok(serde_json::json!({
         "source": cfg.source,
@@ -112,7 +114,10 @@ pub fn open_url(url: String) -> Result<(), String> {
 
 #[command]
 pub async fn get_image_meta() -> Result<serde_json::Value, String> {
-    let meta = wallpaper::latest_meta().unwrap_or_default();
+    let cfg = config::load().map_err(|e| e.to_string())?;
+    let meta = wallpaper::current_meta(&cfg.source)
+        .or_else(wallpaper::latest_meta)
+        .unwrap_or_default();
     Ok(serde_json::json!({
         "title": meta.title,
         "description": meta.description,
