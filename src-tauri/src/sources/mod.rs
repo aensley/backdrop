@@ -2,6 +2,7 @@ pub mod apod;
 pub mod bing;
 pub mod eo;
 pub mod iotd;
+pub mod natgeo;
 pub mod wmc;
 
 use anyhow::Result;
@@ -10,7 +11,7 @@ use reqwest::Client;
 
 use crate::config::Config;
 
-pub const VALID_SOURCES: &[&str] = &["iotd", "apod", "bing", "wmc", "eo"];
+pub const VALID_SOURCES: &[&str] = &["iotd", "apod", "bing", "wmc", "eo", "natgeo"];
 
 pub struct ImageInfo {
     pub urls: Vec<String>,
@@ -35,6 +36,7 @@ pub async fn resolve(src: &str, cfg: &Config) -> Result<ImageInfo> {
         "bing" => bing::resolve(&client).await,
         "wmc" => wmc::resolve(&client).await,
         "eo" => eo::resolve(&client).await,
+        "natgeo" => natgeo::resolve(&client).await,
         _ => anyhow::bail!("unknown source '{src}'"),
     }
 }

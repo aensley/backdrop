@@ -92,13 +92,14 @@ The `--force` flag can be combined with `update`, `set`, and `random` commands t
 
 ## Sources
 
-| Key    | Name                                                                                                          |
-| ------ | ------------------------------------------------------------------------------------------------------------- |
-| `bing` | Bing Image of the Day<br>https://www.bing.com/                                                                |
-| `apod` | NASA Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                              |
-| `eo`   | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
-| `iotd` | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
-| `wmc`  | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
+| Key      | Name                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------- |
+| `bing`   | Bing Image of the Day<br>https://www.bing.com/                                                                |
+| `apod`   | NASA Astronomy Picture of the Day<br>https://apod.nasa.gov/apod/                                              |
+| `eo`     | NASA Earth Observatory Image of the Day<br>https://science.nasa.gov/earth/earth-observatory/image-of-the-day/ |
+| `iotd`   | NASA Image of the Day _(default)_<br>https://www.nasa.gov/image-of-the-day/                                   |
+| `natgeo` | National Geographic Photo of the Day<br>https://www.nationalgeographic.com/photo-of-the-day/                  |
+| `wmc`    | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
 
 Switch sources at any time:
 

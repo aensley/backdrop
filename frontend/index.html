@@ -306,6 +306,12 @@
         gap: 5px;
       }
 
+      .source-check-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
       .source-check {
         display: flex;
         align-items: center;
@@ -314,6 +320,7 @@
         font-size: 14px;
         color: var(--text);
         user-select: none;
+        flex: 1;
       }
 
       .source-check input[type='checkbox'] {
@@ -322,6 +329,23 @@
         height: 15px;
         cursor: pointer;
         flex-shrink: 0;
+      }
+
+      .source-link {
+        padding: 2px 4px;
+        border: none;
+        background: transparent;
+        color: var(--text-dim);
+        cursor: pointer;
+        line-height: 0;
+        border-radius: 4px;
+        flex-shrink: 0;
+        transition: color 0.15s;
+      }
+
+      .source-link:hover {
+        color: var(--accent);
+        background: transparent;
       }
 
       /* ── Rotate row ── */
@@ -495,26 +519,162 @@
           <label>Sources</label>
           <div class="source-controls">
             <div class="source-list">
-              <label class="source-check">
-                <input type="checkbox" value="bing" />
-                Bing Image of the Day
-              </label>
-              <label class="source-check">
-                <input type="checkbox" value="apod" />
-                NASA Astronomy Picture of the Day
-              </label>
-              <label class="source-check">
-                <input type="checkbox" value="eo" />
-                NASA Earth Observatory
-              </label>
-              <label class="source-check">
-                <input type="checkbox" value="iotd" />
-                NASA Image of the Day
-              </label>
-              <label class="source-check">
-                <input type="checkbox" value="wmc" />
-                Wikimedia Commons
-              </label>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="bing" />
+                  Bing Image of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.bing.com/"
+                  title="Open source website"
+                  aria-label="Open Bing website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="apod" />
+                  NASA Astronomy Picture of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://apod.nasa.gov/apod/"
+                  title="Open source website"
+                  aria-label="Open NASA APOD website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="eo" />
+                  NASA Earth Observatory
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://science.nasa.gov/earth/earth-observatory/image-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open NASA Earth Observatory website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="iotd" />
+                  NASA Image of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.nasa.gov/image-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open NASA Image of the Day website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="natgeo" />
+                  National Geographic Photo of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.nationalgeographic.com/photo-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open National Geographic website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="wmc" />
+                  Wikimedia Commons
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day"
+                  title="Open source website"
+                  aria-label="Open Wikimedia Commons website">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 12 12"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+                    <path d="M8 1h3v3M11 1 6 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="rotate-row">
               <label for="rotate-interval">Rotate every</label>
@@ -665,7 +825,15 @@
         apod: 'NASA Astronomy Picture of the Day',
         bing: 'Bing Image of the Day',
         eo: 'NASA Earth Observatory',
+        natgeo: 'National Geographic Photo of the Day',
         wmc: 'Wikimedia Commons'
+      }
+
+      for (const btn of document.querySelectorAll('.source-link')) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          invoke('open_url', { url: btn.dataset.url }).catch(() => {})
+        })
       }
 
       async function loadStatus() {
