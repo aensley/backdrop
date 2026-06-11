@@ -10,7 +10,7 @@ const path = require('path')
 const { execSync } = require('child_process')
 
 const projectRoot = path.resolve(__dirname, '..')
-const iconPath = path.join(projectRoot, 'src-tauri', 'icons', 'icon.svg')
+const iconPath = path.join(projectRoot, 'frontend', 'icon.svg')
 const appId = 'com.andrewensley.backdrop'
 const appsDir = path.join(process.env.HOME, '.local', 'share', 'applications')
 const desktopFile = path.join(appsDir, `${appId}.desktop`)

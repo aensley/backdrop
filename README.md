@@ -1,7 +1,7 @@
 # backdrop
 
 <p align="center">
-  <img src="src-tauri/icons/icon.svg" alt="backdrop" width="128"/><br/>
+  <img src="frontend/icon.svg" alt="backdrop" width="128"/><br/>
   <a href="https://github.com/aensley/backdrop/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff" alt="Version"/></a>
   <a href="https://github.com/aensley/backdrop/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop.svg" alt="License"/></a>
 </p>

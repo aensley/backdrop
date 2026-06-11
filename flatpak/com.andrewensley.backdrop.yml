@@ -34,7 +34,7 @@ modules:
       - install -Dm755 src-tauri/target/release/backdrop /app/bin/backdrop
       - install -Dm644 flatpak/com.andrewensley.backdrop.desktop
         /app/share/applications/com.andrewensley.backdrop.desktop
-      - install -Dm644 src-tauri/icons/icon.svg
+      - install -Dm644 frontend/icon.svg
         /app/share/icons/hicolor/scalable/apps/com.andrewensley.backdrop.svg
       - install -Dm644 src-tauri/icons/icon.png
         /app/share/icons/hicolor/512x512/apps/com.andrewensley.backdrop.png

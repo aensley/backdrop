@@ -454,55 +454,14 @@
     </style>
   </head>
   <body>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+      <symbol id="icon-external-link" viewBox="0 0 12 12">
+        <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+        <path d="M8 1h3v3M11 1 6 6" />
+      </symbol>
+    </svg>
     <header>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 512 512"
-        width="28"
-        height="28"
-        aria-hidden="true"
-        style="flex-shrink: 0">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#1e1040" />
-            <stop offset="100%" stop-color="#050d1a" />
-          </linearGradient>
-          <radialGradient id="glow" cx="289" cy="255" r="200" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.28" />
-            <stop offset="100%" stop-color="#7c3aed" stop-opacity="0" />
-          </radialGradient>
-          <clipPath id="clip">
-            <rect width="512" height="512" rx="80" />
-          </clipPath>
-        </defs>
-        <rect width="512" height="512" rx="80" fill="url(#bg)" />
-        <g clip-path="url(#clip)">
-          <ellipse cx="289" cy="255" rx="250" ry="240" fill="url(#glow)" />
-          <path
-            d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
-            fill="#6d28d9"
-            opacity="0.05"
-            transform="translate(140,140)" />
-          <path
-            d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
-            fill="#6d28d9"
-            opacity="0.09"
-            transform="translate(100,100)" />
-          <path
-            d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
-            fill="#6d28d9"
-            opacity="0.15"
-            transform="translate(60,60)" />
-          <path
-            d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
-            fill="#6d28d9"
-            opacity="0.24"
-            transform="translate(25,25)" />
-          <path
-            d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
-            fill="#ffffff" />
-        </g>
-      </svg>
+      <img src="icon.svg" width="28" height="28" alt="" style="flex-shrink: 0" />
       <h1>backdrop</h1>
       <div class="chips">
         <span id="chip-source" class="chip">loading…</span>
@@ -530,8 +489,6 @@
                   title="Open source website"
                   aria-label="Open Bing website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -540,8 +497,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -556,8 +512,6 @@
                   title="Open source website"
                   aria-label="Open NASA APOD website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -566,8 +520,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -582,8 +535,6 @@
                   title="Open source website"
                   aria-label="Open Earth.com website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -592,8 +543,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -608,8 +558,6 @@
                   title="Open source website"
                   aria-label="Open NASA Earth Observatory website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -618,8 +566,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -634,8 +581,6 @@
                   title="Open source website"
                   aria-label="Open NASA Image of the Day website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -644,8 +589,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -660,8 +604,6 @@
                   title="Open source website"
                   aria-label="Open National Geographic website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -670,8 +612,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
@@ -686,8 +627,6 @@
                   title="Open source website"
                   aria-label="Open Wikimedia Commons website">
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 12 12"
                     width="12"
                     height="12"
                     fill="none"
@@ -696,8 +635,7 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true">
-                    <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
-                    <path d="M8 1h3v3M11 1 6 6" />
+                    <use href="#icon-external-link" />
                   </svg>
                 </button>
               </div>
