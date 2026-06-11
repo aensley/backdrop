@@ -8,8 +8,9 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
 
     match cmd {
         "update" | "refresh" => {
+            let force = args.contains(&"--force".to_string());
             let cfg = config::load()?;
-            let msg = wallpaper::apply(&cfg.source, &cfg).await?;
+            let msg = wallpaper::apply(&cfg.source, &cfg, force).await?;
             println!("{msg}");
         }
 
@@ -23,10 +24,11 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
                     sources::VALID_SOURCES.join(", ")
                 );
             }
+            let force = args.contains(&"--force".to_string());
             config::cfg_set("source", src)?;
             println!("backdrop: active source is now '{src}'");
             let cfg = config::load()?;
-            let msg = wallpaper::apply(src, &cfg).await?;
+            let msg = wallpaper::apply(src, &cfg, force).await?;
             println!("{msg}");
         }
 
@@ -74,6 +76,7 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
         }
 
         "random" => {
+            let force = args.contains(&"--force".to_string());
             let cfg = config::load()?;
             let idx = (std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -81,7 +84,7 @@ pub async fn dispatch(args: Vec<String>) -> Result<()> {
                 .subsec_nanos() as usize)
                 % sources::VALID_SOURCES.len();
             let src = sources::VALID_SOURCES[idx];
-            let msg = wallpaper::apply(src, &cfg).await?;
+            let msg = wallpaper::apply(src, &cfg, force).await?;
             println!("{msg}");
         }
 
@@ -137,15 +140,17 @@ fn print_usage() {
     println!(
         "Usage: backdrop <command>
 
-  update            Refresh wallpaper from the active source (default command)
-  set <source>      Switch active source and refresh now
-  set-time <HH:MM>  Set the daily run time (24-hour); restarts timer if active
-  status            Show the active source and last image
-  random            Refresh from a randomly chosen source (does not change active)
-  enable            Enable the daily systemd --user timer (backdrop.timer)
-  uninstall         Remove backdrop from this system
-  uninstall --purge Remove backdrop and delete config and cached wallpapers
-  help              Show this help
+  update [--force]         Refresh wallpaper from the active source (default command)
+  set <source> [--force]   Switch active source and refresh now
+  set-time <HH:MM>         Set the daily run time (24-hour); restarts timer if active
+  status                   Show the active source and last image
+  random [--force]         Refresh from a randomly chosen source (does not change active)
+  enable                   Enable the daily systemd --user timer (backdrop.timer)
+  uninstall                Remove backdrop from this system
+  uninstall --purge        Remove backdrop and delete config and cached wallpapers
+  help                     Show this help
+
+  --force  Skip the local cache check and always download a fresh image
 
 Sources:
   bing   Bing image of the day

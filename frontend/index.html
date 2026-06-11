@@ -434,8 +434,8 @@
       <h1>backdrop</h1>
       <div class="chips">
         <span id="chip-source" class="chip">loading…</span>
-        <span id="chip-timer" class="chip">—</span>
-        <span id="chip-de" class="chip">—</span>
+        <span id="chip-timer" class="chip">-</span>
+        <span id="chip-de" class="chip">-</span>
       </div>
     </header>
 
@@ -458,6 +458,7 @@
             </div>
             <div class="btn-row">
               <button id="btn-update">Update Now</button>
+              <button id="btn-force-update">Force Update</button>
               <button id="btn-random">Random</button>
             </div>
             <div id="last-image" class="last-image"></div>
@@ -620,7 +621,7 @@
           timerChip.textContent = 'Timer off'
           timerChip.classList.remove('on')
         }
-        document.getElementById('chip-de').textContent = s.desktop_env ?? '—'
+        document.getElementById('chip-de').textContent = s.desktop_env ?? '-'
 
         // Wallpaper card
         document.getElementById('source-sel').value = s.source
@@ -636,7 +637,7 @@
         document.getElementById('btn-enable').disabled = s.timer_active
         document.getElementById('btn-disable').disabled = !s.timer_active
 
-        // Advanced card — only populate on first load (don't overwrite mid-edit)
+        // Advanced card. Only populate on first load (don't overwrite mid-edit)
         const sarEl = document.getElementById('adv-sar')
         const zmcEl = document.getElementById('adv-zmc')
         const uaEl = document.getElementById('adv-ua')
@@ -667,7 +668,15 @@
 
       document.getElementById('btn-update').addEventListener('click', async (e) => {
         await run(e.target, async () => {
-          const msg = await invoke('update')
+          const msg = await invoke('update', { force: false })
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-force-update').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('update', { force: true })
           await loadStatus()
           return msg
         })

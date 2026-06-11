@@ -158,9 +158,34 @@ pub fn current_option() -> Option<String> {
     }
 }
 
-pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
+pub async fn apply(src: &str, cfg: &Config, force: bool) -> Result<String> {
     if !sources::is_valid(src) {
         bail!("unknown source '{src}' (valid: {})", sources::VALID_SOURCES.join(", "));
+    }
+
+    let date = Local::now().format("%Y-%m-%d");
+    let dest = config::state_dir().join(format!("{src}-{date}.jpg"));
+
+    if !force && dest.exists() {
+        let meta: ImageMeta = std::fs::read_to_string(dest.with_extension("json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        let option = pick_option(&dest, cfg);
+        set(&dest, &option)?;
+        let dims = image::image_dims(&dest)
+            .map(|(w, h)| format!("{w}x{h}"))
+            .unwrap_or_default();
+        let mut msg = format!("backdrop: set from cache [{dims}, {option}] -> {}", dest.display());
+        if let Some(ref title) = meta.title {
+            msg.push('\n');
+            msg.push_str(title);
+        }
+        if let Some(ref desc) = meta.description {
+            msg.push('\n');
+            msg.push_str(desc);
+        }
+        return Ok(msg);
     }
 
     let info = sources::resolve(src, cfg).await?;
@@ -169,9 +194,6 @@ pub async fn apply(src: &str, cfg: &Config) -> Result<String> {
             "backdrop: {src} has no image today (e.g. APOD video day); wallpaper unchanged."
         ));
     }
-
-    let date = Local::now().format("%Y-%m-%d");
-    let dest = config::state_dir().join(format!("{src}-{date}.jpg"));
 
     let client = sources::build_client(cfg)?;
     let mut downloaded = false;

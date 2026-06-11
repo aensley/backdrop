@@ -4,13 +4,15 @@ use tauri::command;
 use crate::{config, screen, sources, timer, wallpaper};
 
 #[command]
-pub async fn update() -> Result<String, String> {
+pub async fn update(force: Option<bool>) -> Result<String, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
-    wallpaper::apply(&cfg.source, &cfg).await.map_err(|e| e.to_string())
+    wallpaper::apply(&cfg.source, &cfg, force.unwrap_or(false))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[command]
-pub async fn set_source(source: String) -> Result<String, String> {
+pub async fn set_source(source: String, force: Option<bool>) -> Result<String, String> {
     if !sources::is_valid(&source) {
         return Err(format!(
             "unknown source '{source}' (valid: {})",
@@ -19,7 +21,9 @@ pub async fn set_source(source: String) -> Result<String, String> {
     }
     config::cfg_set("source", &source).map_err(|e| e.to_string())?;
     let cfg = config::load().map_err(|e| e.to_string())?;
-    let msg = wallpaper::apply(&source, &cfg).await.map_err(|e| e.to_string())?;
+    let msg = wallpaper::apply(&source, &cfg, force.unwrap_or(false))
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(format!("Active source is now '{source}'. {msg}"))
 }
 
@@ -60,7 +64,7 @@ pub async fn get_status() -> Result<Value, String> {
 }
 
 #[command]
-pub async fn random_wallpaper() -> Result<String, String> {
+pub async fn random_wallpaper(force: Option<bool>) -> Result<String, String> {
     let cfg = config::load().map_err(|e| e.to_string())?;
     let idx = (std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -68,7 +72,9 @@ pub async fn random_wallpaper() -> Result<String, String> {
         .subsec_nanos() as usize)
         % sources::VALID_SOURCES.len();
     let src = sources::VALID_SOURCES[idx];
-    wallpaper::apply(src, &cfg).await.map_err(|e| e.to_string())
+    wallpaper::apply(src, &cfg, force.unwrap_or(false))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[command]

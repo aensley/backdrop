@@ -76,16 +76,19 @@ After either method, run `backdrop enable` to start the daily timer.
 backdrop <command>
 ```
 
-| Command                | Description                                                             |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `update` / `refresh`   | Refresh wallpaper from the active source (default)                      |
-| `set <source>` / `use` | Switch active source and refresh now                                    |
-| `set-time <HH:MM>`     | Set the daily run time (24-hour); restarts timer if active              |
-| `status`               | Show active source, last image, image title, display method, and config |
-| `random`               | Refresh from a randomly chosen source (does not change active source)   |
-| `enable`               | Enable the daily timer (see [Scheduling](#scheduling))                  |
-| `uninstall`            | Remove backdrop; `--purge` also deletes config and cached images        |
-| `help`                 | Show help                                                               |
+| Command                | Description                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `update` / `refresh`   | Refresh wallpaper from the active source (default). Uses local cache if today's image is already downloaded. |
+| `update --force`       | Force a fresh download even if today's image is already cached.                                              |
+| `set <source>` / `use` | Switch active source and refresh now                                                                         |
+| `set-time <HH:MM>`     | Set the daily run time (24-hour); restarts timer if active                                                   |
+| `status`               | Show active source, last image, image title, display method, and config                                      |
+| `random`               | Refresh from a randomly chosen source (does not change active source)                                        |
+| `enable`               | Enable the daily timer (see [Scheduling](#scheduling))                                                       |
+| `uninstall`            | Remove backdrop; `--purge` also deletes config and cached images                                             |
+| `help`                 | Show help                                                                                                    |
+
+The `--force` flag can be combined with `update`, `set`, and `random` commands to always download a fresh image, bypassing the local cache.
 
 ## Sources
 

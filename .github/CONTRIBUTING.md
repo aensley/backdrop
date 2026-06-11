@@ -112,6 +112,12 @@ Metadata is automatically saved alongside each downloaded image as a `.json` sid
 
 3. Add the DE to the Supported Platforms list in `README.md`.
 
+## Download caching
+
+`wallpaper::apply(src, cfg, force)` checks for a locally cached image before hitting the network. The cache key is `<source>-<YYYY-MM-DD>.jpg` in the state directory. If the file exists and `force` is `false`, the download is skipped entirely and the existing file is re-applied. Pass `force: true` to bypass the cache and always fetch a fresh image.
+
+This applies to all callers: the `update`, `set`, and `random` CLI commands (via `--force`), and the corresponding Tauri commands (`update`, `set_source`, `random_wallpaper`) via the optional `force` parameter.
+
 ## Architecture constraints
 
 - **No new dependencies** unless they are pervasive (99%+ ecosystem adoption) and unavoidably large. Keep backdrop self-contained.
