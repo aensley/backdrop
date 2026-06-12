@@ -16,6 +16,8 @@
 # natgeo: https://www.nationalgeographic.com/photo-of-the-day/
 # wmc:    https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day
 
+VERSION="1.1.0"
+
 set -euo pipefail
 
 STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/backdrop"
@@ -42,7 +44,7 @@ META_URL=""
 SOURCE="iotd"
 SCREEN_ASPECT_RATIO="1.7778"
 ZOOM_MIN_COVERAGE="0.55"
-USER_AGENT="backdrop/1.0 (personal daily wallpaper script)"
+USER_AGENT="backdrop/${VERSION%.*} (personal daily wallpaper script)"
 TIMER_TIME="08:00"
 
 mkdir -p "$STATE_DIR" "$CONFIG_DIR"
@@ -110,7 +112,7 @@ screen_aspect_ratio = $SCREEN_ASPECT_RATIO
 zoom_min_coverage = $ZOOM_MIN_COVERAGE
 
 # HTTP User-Agent string sent with all requests. Override if a source blocks the default.
-# user_agent = backdrop/1.0 (personal daily wallpaper script)
+# user_agent = backdrop/${VERSION%.*} (personal daily wallpaper script)
 
 # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).
 # Also settable with: backdrop set-time HH:MM
@@ -527,6 +529,21 @@ _strip_html() {
   printf '%s' "$s" | tr -s ' \t\n' ' ' | sed 's/^ //;s/ $//'
 }
 
+# Returns 0 (true) if version $1 is strictly newer than $2 (MAJOR.MINOR.PATCH).
+_version_gt() {
+  local i av bv
+  local -a a b
+  IFS='.' read -ra a <<<"$1"
+  IFS='.' read -ra b <<<"$2"
+  for ((i = 0; i < 3; i++)); do
+    av="${a[$i]:-0}"
+    bv="${b[$i]:-0}"
+    if ((av > bv)); then return 0; fi
+    if ((av < bv)); then return 1; fi
+  done
+  return 1
+}
+
 # Write title/desc/url metadata alongside a downloaded image (as a .meta file).
 _write_meta() {
   local dest="$1" meta t d
@@ -548,11 +565,19 @@ _meta_get() {
 }
 
 apply_wallpaper() {
-  local src="$1" full_output candidates dest url ok=0
+  local src="$1" full_output candidates dest url ok=0 opt
   is_valid "$src" || die "unknown source '$src' (valid: ${VALID_SOURCES[*]})"
   META_TITLE=""
   META_DESC=""
   META_URL=""
+
+  dest="$STATE_DIR/$src-$(date +%F).jpg"
+  if [ -f "$dest" ] && [ "$FORCE" = false ]; then
+    opt="$(pick_picture_option "$dest")"
+    set_wallpaper "$dest" "$opt"
+    echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest (cached)"
+    return 0
+  fi
 
   if ! full_output="$(resolve_"$src")"; then
     die "failed to reach $src source"
@@ -566,7 +591,6 @@ apply_wallpaper() {
     return 0
   fi
 
-  dest="$STATE_DIR/$src-$(date +%F).jpg"
   while IFS= read -r url; do
     [ -n "$url" ] || continue
     if curl -fsSL --max-time 120 -A "$USER_AGENT" "$url" -o "$dest"; then
@@ -576,7 +600,6 @@ apply_wallpaper() {
   done <<<"$candidates"
   [ "$ok" -eq 1 ] || die "could not download any image for $src"
 
-  local opt
   opt="$(pick_picture_option "$dest")"
   set_wallpaper "$dest" "$opt"
   _write_meta "$dest"
@@ -586,19 +609,50 @@ apply_wallpaper() {
   echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest"
 }
 
+upgrade() {
+  local api_response latest_tag latest_version raw_url tmp
+  echo "backdrop: checking for updates (current: v${VERSION})..."
+  api_response="$(curl -fsSL --max-time 15 -A "$USER_AGENT" \
+    "https://api.github.com/repos/aensley/backdrop-cli/releases/latest")" ||
+    die "upgrade: could not reach GitHub API"
+  latest_tag="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' \
+    <<<"$api_response" 2>/dev/null)" ||
+    die "upgrade: could not parse release info"
+  latest_version="${latest_tag#v}"
+  if ! _version_gt "$latest_version" "$VERSION"; then
+    echo "backdrop: already up to date (v${VERSION})."
+    return 0
+  fi
+  echo "backdrop: upgrading v${VERSION} -> v${latest_version}..."
+  raw_url="https://raw.githubusercontent.com/aensley/backdrop-cli/${latest_tag}/src/backdrop.sh"
+  tmp="$(mktemp)"
+  curl -fsSL --max-time 60 -A "$USER_AGENT" "$raw_url" -o "$tmp" ||
+    {
+      rm -f "$tmp"
+      die "upgrade: failed to download v${latest_version}"
+    }
+  sudo install -m 755 "$tmp" /usr/local/bin/backdrop
+  rm -f "$tmp"
+  echo "backdrop: upgraded to v${latest_version}."
+}
+
 usage() {
   cat <<EOF
+backdrop v${VERSION}
+
 Usage: backdrop <command>
 
-  update            Refresh wallpaper from the active source (default command)
-  set <source>      Switch active source and refresh now
-  set-time <HH:MM>  Set the daily run time (24-hour); restarts timer if active
-  status            Show the active source and last image
-  random            Refresh from a randomly chosen source (does not change active)
-  enable            Enable the daily systemd --user timer (backdrop.timer)
-  uninstall         Remove backdrop from this system
-  uninstall --purge Remove backdrop and delete config and cached wallpapers
-  help              Show this help
+Commands:
+  update [--force]       Refresh wallpaper from the active source (default command)
+  set <source> [--force] Switch active source and refresh now
+  set-time <HH:MM>       Set the daily run time (24-hour); restarts timer if active
+  status                 Show the active source and last image
+  random [--force]       Refresh from a randomly chosen source (does not change active source)
+  enable                 Enable the daily systemd --user timer (backdrop.timer)
+  disable                Disable the daily systemd --user timer
+  upgrade                Check for and install the latest version from GitHub
+  uninstall [--purge]    Remove backdrop and (with --purge) delete config and cached wallpapers
+  help                   Show this help
 
 Sources:
   bing    Bing image of the day
@@ -614,21 +668,29 @@ EOF
 # --- Dispatch ---------------------------------------------------------------
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  FORCE=false
   cmd="${1:-update}"
   [ "$cmd" != "uninstall" ] && load_config
   case "$cmd" in
     update | refresh)
+      [ "${2:-}" = "--force" ] && FORCE=true
       apply_wallpaper "$(get_source)"
       ;;
     set | use)
       s="${2:-}"
       is_valid "$s" || die "set: choose a source (${VALID_SOURCES[*]})"
+      [ "${3:-}" = "--force" ] && FORCE=true
       cfg_set source "$s"
       echo "backdrop: active source is now '$s'"
       apply_wallpaper "$s"
       ;;
     status)
       echo "Active source:     $(get_source)"
+      if systemctl --user is-enabled --quiet backdrop.timer 2>/dev/null; then
+        echo "Timer:             enabled (runs at $TIMER_TIME)"
+      else
+        echo "Timer:             disabled"
+      fi
       latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
       [ -n "$latest" ] && echo "Last image:        $latest"
       if [ -n "$latest" ]; then
@@ -682,12 +744,17 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       echo "Config file:       $CONFIG_FILE"
       ;;
     random)
+      [ "${2:-}" = "--force" ] && FORCE=true
       apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
       ;;
     enable)
       apply_timer_time "$TIMER_TIME"
       systemctl --user enable --now backdrop.timer
       echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
+      ;;
+    disable)
+      systemctl --user disable --now backdrop.timer
+      echo "backdrop: daily timer disabled."
       ;;
     set-time)
       t="${2:-}"
@@ -700,6 +767,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       else
         echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
       fi
+      ;;
+    upgrade)
+      upgrade
       ;;
     uninstall)
       purge=false
