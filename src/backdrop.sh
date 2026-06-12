@@ -36,7 +36,7 @@ VALID_SOURCES=(iotd apod bing wmc eo earth natgeo)
 SOURCE="iotd"
 SCREEN_ASPECT_RATIO="1.7778"
 ZOOM_MIN_COVERAGE="0.55"
-USER_AGENT="backdrop/1.0 (personal daily wallpaper script)"
+USER_AGENT="backdrop/1.0.0 (personal daily wallpaper script)"
 TIMER_TIME="08:00"
 
 mkdir -p "$STATE_DIR" "$CONFIG_DIR"
@@ -104,7 +104,7 @@ screen_aspect_ratio = $SCREEN_ASPECT_RATIO
 zoom_min_coverage = $ZOOM_MIN_COVERAGE
 
 # HTTP User-Agent string sent with all requests. Override if a source blocks the default.
-# user_agent = backdrop/1.0 (personal daily wallpaper script)
+# user_agent = backdrop/1.0.0 (personal daily wallpaper script)
 
 # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).
 # Also settable with: backdrop set-time HH:MM
