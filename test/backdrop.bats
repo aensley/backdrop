@@ -450,6 +450,35 @@ STUB
   [ "$output" = "https://example.com/" ]
 }
 
+# ---------------------------------------------------------------------------
+# _version_gt
+# ---------------------------------------------------------------------------
+
+@test "_version_gt: newer major returns true" {
+  run _version_gt "2.0.0" "1.9.9"
+  [ "$status" -eq 0 ]
+}
+
+@test "_version_gt: newer minor returns true" {
+  run _version_gt "1.2.0" "1.1.9"
+  [ "$status" -eq 0 ]
+}
+
+@test "_version_gt: newer patch returns true" {
+  run _version_gt "1.1.1" "1.1.0"
+  [ "$status" -eq 0 ]
+}
+
+@test "_version_gt: equal versions returns false" {
+  run _version_gt "1.1.0" "1.1.0"
+  [ "$status" -ne 0 ]
+}
+
+@test "_version_gt: older version returns false" {
+  run _version_gt "1.0.0" "1.1.0"
+  [ "$status" -ne 0 ]
+}
+
 @test "_write_meta: omits empty fields from the .meta file" {
   mkdir -p "$STATE_DIR"
   local dest="$STATE_DIR/src-2025-01-01.jpg"

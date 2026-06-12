@@ -22,7 +22,7 @@ Run it once manually or let a systemd timer handle it on a schedule.
 
 ## Desktop Environments
 
-backdrop supports the following Desktop Environments.
+backdrop-cli supports the following Desktop Environments.
 
 | Desktop               | Method                        | Notes                                                                           |
 | --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
@@ -64,16 +64,18 @@ The installer:
 backdrop <command>
 ```
 
-| Command            | Description                                                    |
-| ------------------ | -------------------------------------------------------------- |
-| `update`           | Refresh wallpaper from the active source (default)             |
-| `set <source>`     | Switch active source and refresh now                           |
-| `set-time <HH:MM>` | Set the daily run time (24-hour); restarts timer if active     |
-| `status`           | Show the active source, last image, and image metadata         |
-| `random`           | Refresh from a randomly chosen source (does not change active) |
-| `enable`           | Enable the daily systemd --user timer                          |
-| `uninstall`        | Remove backdrop from this system                               |
-| `help`             | Show help                                                      |
+| Command                  | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| `update [--force]`       | Refresh wallpaper from the active source (default)             |
+| `set <source> [--force]` | Switch active source and refresh now                           |
+| `set-time <HH:MM>`       | Set the daily run time (24-hour); restarts timer if active     |
+| `status`                 | Show the active source, last image, and image metadata         |
+| `random [--force]`       | Refresh from a randomly chosen source (does not change active) |
+| `enable`                 | Enable the daily systemd --user timer                          |
+| `disable`                | Disable the daily systemd --user timer                         |
+| `upgrade`                | Check for and install the latest version from GitHub           |
+| `uninstall`              | Remove backdrop from this system                               |
+| `help`                   | Show help                                                      |
 
 ## Sources
 
