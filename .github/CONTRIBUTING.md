@@ -48,6 +48,25 @@ cargo build --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
+## Unit tests
+
+Unit tests live in `#[cfg(test)]` modules at the bottom of each source file they test. Run them with:
+
+```bash
+npm test
+# or directly:
+cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+To generate an lcov coverage report locally (requires `cargo-llvm-cov`):
+
+```bash
+cargo install cargo-llvm-cov
+cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path target/lcov.info
+```
+
+The CI `test` workflow runs these automatically on every push and PR and uploads the report to qlty.sh.
+
 ## Commits
 
 Commits must follow the [Conventional Commits](https://www.conventionalcommits.org/) spec. The `prepare-commit-msg` hook will prompt you interactively. You can also invoke it directly:

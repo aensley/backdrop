@@ -88,7 +88,7 @@ pub fn ensure_config() -> Result<()> {
     Ok(())
 }
 
-fn parse_value(line: &str, key: &str) -> Option<String> {
+pub(crate) fn parse_value(line: &str, key: &str) -> Option<String> {
     let line = line.trim();
     if line.starts_with('#') {
         return None;
@@ -144,6 +144,62 @@ pub fn cfg_set(key: &str, value: &str) -> Result<()> {
 
     fs::write(&path, result)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_value_basic() {
+        assert_eq!(parse_value("key = value", "key"), Some("value".to_string()));
+    }
+
+    #[test]
+    fn parse_value_comment_returns_none() {
+        assert_eq!(parse_value("# key = value", "key"), None);
+    }
+
+    #[test]
+    fn parse_value_wrong_key_returns_none() {
+        assert_eq!(parse_value("other = value", "key"), None);
+    }
+
+    #[test]
+    fn parse_value_double_quoted_strips_quotes() {
+        assert_eq!(
+            parse_value(r#"key = "hello world""#, "key"),
+            Some("hello world".to_string()),
+        );
+    }
+
+    #[test]
+    fn parse_value_single_quoted_strips_quotes() {
+        assert_eq!(parse_value("key = 'hello'", "key"), Some("hello".to_string()));
+    }
+
+    #[test]
+    fn parse_value_no_spaces_around_equals() {
+        assert_eq!(parse_value("key=value", "key"), Some("value".to_string()));
+    }
+
+    #[test]
+    fn parse_value_empty_line_returns_none() {
+        assert_eq!(parse_value("", "key"), None);
+    }
+
+    #[test]
+    fn parse_value_whitespace_only_returns_none() {
+        assert_eq!(parse_value("   ", "key"), None);
+    }
+
+    #[test]
+    fn is_valid_source_known() {
+        use crate::sources::VALID_SOURCES;
+        for src in VALID_SOURCES {
+            assert!(crate::sources::is_valid(src));
+        }
+    }
 }
 
 pub fn load() -> Result<Config> {

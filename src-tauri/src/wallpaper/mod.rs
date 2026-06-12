@@ -300,6 +300,110 @@ pub fn pick_source(cfg: &Config) -> &str {
     &sources[idx]
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    fn tmp_path(ext: &str) -> std::path::PathBuf {
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!("backdrop_wptest_{id}.{ext}"))
+    }
+
+    fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"\x89PNG\r\n\x1a\n");
+        bytes.extend_from_slice(&[0x00, 0x00, 0x00, 0x0D]);
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&width.to_be_bytes());
+        bytes.extend_from_slice(&height.to_be_bytes());
+        bytes
+    }
+
+    #[test]
+    fn pick_source_empty_defaults_to_iotd() {
+        let cfg = Config {
+            sources: vec![],
+            ..Config::default()
+        };
+        assert_eq!(pick_source(&cfg), "iotd");
+    }
+
+    #[test]
+    fn pick_source_single_returns_that_source() {
+        let cfg = Config {
+            sources: vec!["apod".into()],
+            ..Config::default()
+        };
+        assert_eq!(pick_source(&cfg), "apod");
+    }
+
+    #[test]
+    fn pick_source_multiple_with_no_rotation_returns_first() {
+        let cfg = Config {
+            sources: vec!["iotd".into(), "apod".into()],
+            rotate_interval: 0,
+            ..Config::default()
+        };
+        assert_eq!(pick_source(&cfg), "iotd");
+    }
+
+    #[test]
+    fn pick_source_multiple_with_rotation_returns_valid_source() {
+        let cfg = Config {
+            sources: vec!["iotd".into(), "apod".into(), "bing".into()],
+            rotate_interval: 60,
+            ..Config::default()
+        };
+        let result = pick_source(&cfg);
+        assert!(cfg.sources.iter().any(|s| s == result));
+    }
+
+    #[test]
+    fn pick_option_matching_aspect_ratio_returns_zoom() {
+        // 16:9 image on a 16:9 screen -> coverage = 1.0 -> zoom
+        let path = tmp_path("png");
+        std::fs::write(&path, png_bytes(1920, 1080)).unwrap();
+        let cfg = Config {
+            screen_aspect_ratio: 1.7778,
+            zoom_min_coverage: 0.55,
+            ..Config::default()
+        };
+        assert_eq!(pick_option(&path, &cfg), "zoom");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn pick_option_very_narrow_image_returns_scaled() {
+        // 1:2 portrait on a 16:9 screen: coverage = 0.5/1.7778 ≈ 0.28 < 0.55 -> scaled
+        let path = tmp_path("png");
+        std::fs::write(&path, png_bytes(500, 1000)).unwrap();
+        let cfg = Config {
+            screen_aspect_ratio: 1.7778,
+            zoom_min_coverage: 0.55,
+            ..Config::default()
+        };
+        assert_eq!(pick_option(&path, &cfg), "scaled");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn pick_option_missing_file_returns_zoom() {
+        let path = std::path::Path::new("/tmp/backdrop_nonexistent_wptest.png");
+        let cfg = Config::default();
+        assert_eq!(pick_option(path, &cfg), "zoom");
+    }
+
+    #[test]
+    fn detect_de_name_returns_string() {
+        // Just verify it returns a non-empty string without panicking
+        let name = detect_de_name();
+        assert!(!name.is_empty());
+    }
+}
+
 /// Returns today's cached image for the given source, if it exists.
 pub fn current_image(src: &str) -> Option<std::path::PathBuf> {
     let date = Local::now().format("%Y-%m-%d");

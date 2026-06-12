@@ -1,6 +1,9 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU32, Ordering};
+
 pub fn image_dims(path: &Path) -> Option<(u32, u32)> {
     let mut f = std::fs::File::open(path).ok()?;
     let mut head = [0u8; 26];
@@ -74,5 +77,112 @@ fn jpeg_dims(mut f: std::fs::File) -> Option<(u32, u32)> {
                 f.seek(SeekFrom::Current(len - 2)).ok()?;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    fn tmp_path(ext: &str) -> std::path::PathBuf {
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!("backdrop_imgtest_{id}.{ext}"))
+    }
+
+    #[test]
+    fn png_dims_returned() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"\x89PNG\r\n\x1a\n");
+        bytes.extend_from_slice(&[0x00, 0x00, 0x00, 0x0D]);
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&1920u32.to_be_bytes());
+        bytes.extend_from_slice(&1080u32.to_be_bytes());
+        let path = tmp_path("png");
+        std::fs::write(&path, &bytes).unwrap();
+        assert_eq!(image_dims(&path), Some((1920, 1080)));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn gif87a_dims_returned() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"GIF87a");
+        bytes.extend_from_slice(&800u16.to_le_bytes());
+        bytes.extend_from_slice(&600u16.to_le_bytes());
+        let path = tmp_path("gif");
+        std::fs::write(&path, &bytes).unwrap();
+        assert_eq!(image_dims(&path), Some((800, 600)));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn gif89a_dims_returned() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"GIF89a");
+        bytes.extend_from_slice(&1280u16.to_le_bytes());
+        bytes.extend_from_slice(&720u16.to_le_bytes());
+        let path = tmp_path("gif");
+        std::fs::write(&path, &bytes).unwrap();
+        assert_eq!(image_dims(&path), Some((1280, 720)));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn jpeg_sof0_dims_returned() {
+        // Minimal JPEG: SOI then SOF0 segment directly (no APP segments)
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&[0xFF, 0xD8]); // SOI
+        bytes.extend_from_slice(&[0xFF, 0xC0]); // SOF0
+        bytes.extend_from_slice(&[0x00, 0x11]); // segment length = 17
+        bytes.push(0x08); // precision
+        bytes.extend_from_slice(&200u16.to_be_bytes()); // height
+        bytes.extend_from_slice(&320u16.to_be_bytes()); // width
+        let path = tmp_path("jpg");
+        std::fs::write(&path, &bytes).unwrap();
+        assert_eq!(image_dims(&path), Some((320, 200)));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn jpeg_with_app0_segment_dims_returned() {
+        // JPEG with an APP0 segment before SOF0, exercising the skip-segment branch
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&[0xFF, 0xD8]); // SOI
+        bytes.extend_from_slice(&[0xFF, 0xE0]); // APP0
+        bytes.extend_from_slice(&[0x00, 0x10]); // length = 16 (14 data bytes after 2-byte length)
+        bytes.extend_from_slice(&[0u8; 14]); // APP0 payload
+        bytes.extend_from_slice(&[0xFF, 0xC0]); // SOF0
+        bytes.extend_from_slice(&[0x00, 0x11]); // length = 17
+        bytes.push(0x08); // precision
+        bytes.extend_from_slice(&480u16.to_be_bytes()); // height
+        bytes.extend_from_slice(&640u16.to_be_bytes()); // width
+        let path = tmp_path("jpg");
+        std::fs::write(&path, &bytes).unwrap();
+        assert_eq!(image_dims(&path), Some((640, 480)));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn unknown_format_returns_none() {
+        let path = tmp_path("bin");
+        std::fs::write(&path, b"not an image at all").unwrap();
+        assert_eq!(image_dims(&path), None);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn missing_file_returns_none() {
+        let path = std::path::Path::new("/tmp/backdrop_nonexistent_imgtest_file.png");
+        assert_eq!(image_dims(path), None);
+    }
+
+    #[test]
+    fn too_short_returns_none() {
+        let path = tmp_path("bin");
+        std::fs::write(&path, b"\x89PNG").unwrap(); // less than 10 bytes
+        assert_eq!(image_dims(&path), None);
+        std::fs::remove_file(&path).ok();
     }
 }

@@ -83,6 +83,102 @@ fn decode_entities(s: &str) -> String {
         .replace("&nbsp;", " ")
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_valid_accepts_all_known_sources() {
+        for src in VALID_SOURCES {
+            assert!(is_valid(src), "expected '{src}' to be valid");
+        }
+    }
+
+    #[test]
+    fn is_valid_rejects_unknown_sources() {
+        assert!(!is_valid("facebook"));
+        assert!(!is_valid(""));
+        assert!(!is_valid("IOTD")); // case-sensitive
+    }
+
+    #[test]
+    fn clean_text_strips_html_tags() {
+        assert_eq!(clean_text("<p>Hello <b>world</b></p>"), "Hello world");
+    }
+
+    #[test]
+    fn clean_text_strips_cdata_wrapper() {
+        assert_eq!(clean_text("<![CDATA[some content]]>"), "some content");
+    }
+
+    #[test]
+    fn clean_text_collapses_internal_whitespace() {
+        assert_eq!(clean_text("hello   world"), "hello world");
+    }
+
+    #[test]
+    fn clean_text_trims_outer_whitespace() {
+        assert_eq!(clean_text("  hello  "), "hello");
+    }
+
+    #[test]
+    fn clean_text_decodes_amp() {
+        assert_eq!(clean_text("fish &amp; chips"), "fish & chips");
+    }
+
+    #[test]
+    fn clean_text_decodes_lt_gt() {
+        assert_eq!(clean_text("&lt;tag&gt;"), "<tag>");
+    }
+
+    #[test]
+    fn clean_text_decodes_quot_apos() {
+        assert_eq!(clean_text("&quot;it&#39;s&quot;"), "\"it's\"");
+    }
+
+    #[test]
+    fn clean_text_decodes_decimal_entity() {
+        assert_eq!(clean_text("&#65;"), "A");
+    }
+
+    #[test]
+    fn clean_text_decodes_hex_entity() {
+        assert_eq!(clean_text("&#x41;"), "A");
+    }
+
+    #[test]
+    fn extract_tag_returns_content() {
+        assert_eq!(
+            extract_tag("<title>Hello World</title>", "title"),
+            Some("Hello World".to_string()),
+        );
+    }
+
+    #[test]
+    fn extract_tag_strips_inner_html() {
+        assert_eq!(
+            extract_tag("<desc><b>bold</b> text</desc>", "desc"),
+            Some("bold text".to_string()),
+        );
+    }
+
+    #[test]
+    fn extract_tag_missing_returns_none() {
+        assert_eq!(extract_tag("<other>content</other>", "title"), None);
+    }
+
+    #[test]
+    fn extract_tag_empty_content_returns_none() {
+        assert_eq!(extract_tag("<title></title>", "title"), None);
+    }
+
+    #[test]
+    fn extract_tag_first_occurrence_only() {
+        let xml = "<title>First</title><title>Second</title>";
+        assert_eq!(extract_tag(xml, "title"), Some("First".to_string()));
+    }
+}
+
 /// Extracts the text content of the first occurrence of `<tag>...</tag>` in `xml`.
 pub(crate) fn extract_tag(xml: &str, tag: &str) -> Option<String> {
     let open = format!("<{tag}>");
