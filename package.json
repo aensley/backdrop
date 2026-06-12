@@ -1,6 +1,7 @@
 {
   "name": "backdrop",
   "private": true,
+  "version": "1.0.0",
   "homepage": "https://github.com/aensley/backdrop#readme",
   "bugs": {
     "url": "https://github.com/aensley/backdrop/issues"
@@ -42,6 +43,20 @@
         "@semantic-release/release-notes-generator",
         {
           "preset": "conventionalcommits"
+        }
+      ],
+      [
+        "@semantic-release/npm",
+        {
+          "npmPublish": false
+        }
+      ],
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "package.json"
+          ]
         }
       ],
       "@semantic-release/github"
