@@ -11,40 +11,24 @@
   },
   "license": "MIT",
   "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "commit": "czg",
-    "lint": "prettier --check .",
-    "lint:fix": "prettier --write .",
+    "lint": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint:fix": "prettier --write . && cargo fmt --manifest-path src-tauri/Cargo.toml && cargo clippy --fix --manifest-path src-tauri/Cargo.toml --allow-dirty --allow-staged -- -D warnings",
     "prepare": "npx simple-git-hooks",
     "update": "npx npm-check-updates -u && npm update"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "czg": "^1.13.1",
-    "prettier": "^3.8.3",
-    "prettier-plugin-sh": "^0.18.1",
+    "prettier": "^3.8.4",
     "simple-git-hooks": "^2.13.1"
   },
   "allowScripts": {
     "simple-git-hooks@2.13.1": true
-  },
-  "release": {
-    "branches": [
-      "main"
-    ],
-    "plugins": [
-      [
-        "@semantic-release/commit-analyzer",
-        {
-          "preset": "conventionalcommits"
-        }
-      ],
-      [
-        "@semantic-release/release-notes-generator",
-        {
-          "preset": "conventionalcommits"
-        }
-      ],
-      "@semantic-release/github"
-    ]
   },
   "prettier": {
     "tabWidth": 2,
@@ -64,21 +48,7 @@
     "proseWrap": "preserve",
     "quoteProps": "as-needed",
     "requirePragma": false,
-    "vueIndentScriptAndStyle": false,
-    "plugins": [
-      "prettier-plugin-sh"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "*.sh",
-          "*.bash"
-        ],
-        "options": {
-          "parser": "sh"
-        }
-      }
-    ]
+    "vueIndentScriptAndStyle": false
   },
   "config": {
     "commitizen": {

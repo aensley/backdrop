@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>backdrop</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0e0e1c;
+        --surface: #17172a;
+        --surface-2: #1f1f35;
+        --border: #2b2b48;
+        --border-focus: #5060d8;
+        --text: #dde0f0;
+        --text-dim: #7878a0;
+        --accent: #5060d8;
+        --accent-h: #6070e8;
+        --success: #3aaa6a;
+        --error: #d85050;
+        --r: 7px;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ── Header ── */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 18px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        user-select: none;
+      }
+
+      header h1 {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: var(--text);
+      }
+
+      .chips {
+        display: flex;
+        gap: 7px;
+        flex: 1;
+      }
+
+      .chip {
+        font-size: 13px;
+        padding: 2px 9px;
+        border-radius: 100px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        white-space: nowrap;
+        transition:
+          color 0.2s,
+          border-color 0.2s;
+      }
+
+      .chip.on {
+        color: var(--success);
+        border-color: var(--success);
+      }
+
+      /* ── Main scroll area ── */
+      main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 18px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+      }
+
+      main::-webkit-scrollbar {
+        width: 6px;
+      }
+      main::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      main::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      /* ── Cards ── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px 16px;
+      }
+
+      .card-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #b8b8d0;
+        margin-bottom: 12px;
+      }
+
+      /* ── Form rows (label + control inline) ── */
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 9px;
+      }
+
+      .row:last-child {
+        margin-bottom: 0;
+      }
+
+      .row > label {
+        width: 82px;
+        flex-shrink: 0;
+        color: #b8b8d0;
+        font-size: 14px;
+      }
+
+      /* ── Form grid (label right-aligned + full-width input) ── */
+      .form-grid {
+        display: grid;
+        grid-template-columns: 155px 1fr;
+        row-gap: 8px;
+        column-gap: 12px;
+        align-items: start;
+      }
+
+      .form-grid label {
+        color: #b8b8d0;
+        font-size: 14px;
+        padding-top: 7px;
+        text-align: right;
+      }
+
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .field-hint {
+        font-size: 13px;
+        color: #9898b8;
+      }
+
+      /* ── Inputs & select ── */
+      select,
+      input[type='time'],
+      input[type='number'],
+      input[type='text'] {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--text);
+        font-size: 15px;
+        font-family: inherit;
+        padding: 5px 9px;
+        outline: none;
+        width: 100%;
+        transition: border-color 0.15s;
+      }
+
+      select:focus,
+      input:focus {
+        border-color: var(--border-focus);
+      }
+
+      select {
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237878a0'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
+        cursor: pointer;
+      }
+
+      input[type='number'] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      input[type='number']::-webkit-inner-spin-button,
+      input[type='number']::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+      }
+
+      /* ── Buttons ── */
+      button {
+        padding: 5px 13px;
+        border-radius: 5px;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition:
+          background 0.12s,
+          border-color 0.12s,
+          opacity 0.12s;
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--border);
+      }
+
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: var(--accent-h);
+        border-color: var(--accent-h);
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .card-footer {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+      }
+
+      /* ── Source controls column ── */
+      .source-controls {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .source-top {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+      }
+
+      .row:has(.source-controls) {
+        align-items: flex-start;
+      }
+
+      .row:has(.source-controls) > label {
+        padding-top: 7px;
+      }
+
+      .source-top select,
+      .source-top input {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+      }
+
+      .source-controls .btn-row,
+      .source-controls .last-image,
+      .source-controls .image-meta {
+        margin-top: 0;
+      }
+
+      /* ── Source checkboxes ── */
+      .source-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .source-check-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .source-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--text);
+        user-select: none;
+        flex: 1;
+      }
+
+      .source-check input[type='checkbox'] {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .source-link {
+        padding: 2px 4px;
+        border: none;
+        background: transparent;
+        color: var(--text-dim);
+        cursor: pointer;
+        line-height: 0;
+        border-radius: 4px;
+        flex-shrink: 0;
+        transition: color 0.15s;
+      }
+
+      .source-link:hover {
+        color: var(--accent);
+        background: transparent;
+      }
+
+      /* ── Rotate row ── */
+      .rotate-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .rotate-row label {
+        color: #b8b8d0;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .rotate-row input {
+        width: 64px;
+      }
+
+      .rotate-row span {
+        font-size: 14px;
+        color: var(--text-dim);
+      }
+
+      /* ── Last image hint ── */
+      .last-image {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--text-dim);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* ── Image metadata ── */
+      .image-meta {
+        margin-top: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .meta-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta-title.clickable {
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .meta-title.clickable:hover {
+        color: var(--accent-h);
+        text-decoration: underline;
+      }
+
+      .meta-desc {
+        font-size: 13px;
+        color: #9898b8;
+        line-height: 1.4;
+        display: -webkit-box;
+        max-height: calc(1.4em * 2);
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* ── Toast ── */
+      #toast {
+        position: fixed;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%) translateY(0);
+        padding: 7px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        pointer-events: none;
+        opacity: 0;
+        transition:
+          opacity 0.2s,
+          transform 0.2s;
+        z-index: 99;
+        max-width: 420px;
+        text-align: center;
+      }
+
+      #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-4px);
+      }
+
+      #toast.ok {
+        background: var(--success);
+      }
+
+      #toast.err {
+        background: var(--error);
+      }
+    </style>
+  </head>
+  <body>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+      <symbol id="icon-external-link" viewBox="0 0 12 12">
+        <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7" />
+        <path d="M8 1h3v3M11 1 6 6" />
+      </symbol>
+    </svg>
+    <header>
+      <img src="icon.svg" width="28" height="28" alt="" style="flex-shrink: 0" />
+      <h1>backdrop</h1>
+      <div class="chips">
+        <span id="chip-source" class="chip">loading…</span>
+        <span id="chip-timer" class="chip">-</span>
+        <span id="chip-de" class="chip">-</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- Wallpaper -->
+      <div class="card">
+        <div class="card-title">Wallpaper</div>
+        <div class="row">
+          <label>Sources</label>
+          <div class="source-controls">
+            <div class="source-list">
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="bing" />
+                  Bing Image of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.bing.com/"
+                  title="Open source website"
+                  aria-label="Open Bing website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="apod" />
+                  NASA Astronomy Picture of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://apod.nasa.gov/apod/"
+                  title="Open source website"
+                  aria-label="Open NASA APOD website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="earth" />
+                  Earth.com Image of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.earth.com/"
+                  title="Open source website"
+                  aria-label="Open Earth.com website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="eo" />
+                  NASA Earth Observatory
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://science.nasa.gov/earth/earth-observatory/image-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open NASA Earth Observatory website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="iotd" />
+                  NASA Image of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.nasa.gov/image-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open NASA Image of the Day website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="natgeo" />
+                  National Geographic Photo of the Day
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://www.nationalgeographic.com/photo-of-the-day/"
+                  title="Open source website"
+                  aria-label="Open National Geographic website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+              <div class="source-check-row">
+                <label class="source-check">
+                  <input type="checkbox" value="wmc" />
+                  Wikimedia Commons
+                </label>
+                <button
+                  class="source-link"
+                  data-url="https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day"
+                  title="Open source website"
+                  aria-label="Open Wikimedia Commons website">
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true">
+                    <use href="#icon-external-link" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="rotate-row">
+              <label for="rotate-interval">Rotate sources every</label>
+              <input type="number" id="rotate-interval" min="0" step="1" placeholder="0" />
+              <span>min (0 = off)</span>
+            </div>
+            <div class="btn-row">
+              <button id="btn-apply-sources" class="primary">Apply</button>
+              <button id="btn-update">Update Now</button>
+              <button id="btn-force-update">Force Update</button>
+              <button id="btn-random">Random</button>
+            </div>
+            <div id="last-image" class="last-image"></div>
+            <div id="image-meta" class="image-meta" style="display: none">
+              <div id="meta-title" class="meta-title"></div>
+              <div id="meta-desc" class="meta-desc"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="card">
+        <div class="card-title">Schedule</div>
+        <div class="row">
+          <label for="timer-time">Daily at</label>
+          <div class="source-controls">
+            <div class="source-top">
+              <input type="time" id="timer-time" />
+              <button id="btn-apply-time" class="primary">Apply</button>
+            </div>
+            <div class="btn-row">
+              <button id="btn-enable">Enable Timer</button>
+              <button id="btn-disable">Disable Timer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <div class="card">
+        <div class="card-title">Advanced</div>
+        <div class="form-grid">
+          <label for="adv-sar">Screen aspect ratio</label>
+          <div class="field-group">
+            <input type="number" id="adv-sar" step="0.0001" min="0.1" max="5" />
+            <span class="field-hint">Auto-detected when possible; used as fallback. 16:9 = 1.7778</span>
+          </div>
+
+          <label for="adv-zmc">Zoom min coverage</label>
+          <div class="field-group">
+            <input type="number" id="adv-zmc" step="0.01" min="0.01" max="1" />
+            <span class="field-hint">Fraction of image kept when cropped (0–1). Lower values prefer scaled mode.</span>
+          </div>
+
+          <label for="adv-ua">User agent</label>
+          <div class="field-group">
+            <input type="text" id="adv-ua" />
+            <span class="field-hint">User agent string sent with all HTTP requests.</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button id="btn-save-adv" class="primary">Save</button>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast"></div>
+
+    <script>
+      const invoke = window.__TAURI__.core.invoke
+
+      // ── Toast ────────────────────────────────────────────────────────────────
+
+      let toastTimer = null
+
+      function toast(msg, isError = false) {
+        const el = document.getElementById('toast')
+        el.textContent = msg
+        el.className = isError ? 'err show' : 'ok show'
+        clearTimeout(toastTimer)
+        toastTimer = setTimeout(() => {
+          el.classList.remove('show')
+        }, 3000)
+      }
+
+      // ── Button loading state ──────────────────────────────────────────────────
+
+      async function run(btn, fn) {
+        const orig = btn.textContent
+        btn.disabled = true
+        btn.textContent = '…'
+        try {
+          const result = await fn()
+          if (result) toast(result)
+        } catch (e) {
+          toast(String(e), true)
+        } finally {
+          btn.disabled = false
+          btn.textContent = orig
+        }
+      }
+
+      // ── Image metadata ────────────────────────────────────────────────────────
+
+      async function loadMeta() {
+        let meta
+        try {
+          meta = await invoke('get_image_meta')
+        } catch (e) {
+          return
+        }
+
+        const metaEl = document.getElementById('image-meta')
+        const titleEl = document.getElementById('meta-title')
+        const descEl = document.getElementById('meta-desc')
+
+        if (!meta.title && !meta.description) {
+          metaEl.style.display = 'none'
+          return
+        }
+
+        metaEl.style.display = ''
+
+        titleEl.textContent = meta.title ?? ''
+        if (meta.page_url) {
+          titleEl.classList.add('clickable')
+          titleEl.onclick = () => invoke('open_url', { url: meta.page_url }).catch(() => {})
+          titleEl.title = meta.page_url
+        } else {
+          titleEl.classList.remove('clickable')
+          titleEl.onclick = null
+          titleEl.title = ''
+        }
+
+        if (meta.description) {
+          descEl.textContent = meta.description
+          descEl.style.display = ''
+        } else {
+          descEl.style.display = 'none'
+        }
+      }
+
+      // ── Status ────────────────────────────────────────────────────────────────
+
+      const SOURCE_NAMES = {
+        iotd: 'NASA Image of the Day',
+        apod: 'NASA Astronomy Picture of the Day',
+        bing: 'Bing Image of the Day',
+        earth: 'Earth.com Image of the Day',
+        eo: 'NASA Earth Observatory',
+        natgeo: 'National Geographic Photo of the Day',
+        wmc: 'Wikimedia Commons'
+      }
+
+      for (const btn of document.querySelectorAll('.source-link')) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          invoke('open_url', { url: btn.dataset.url }).catch(() => {})
+        })
+      }
+
+      async function loadStatus() {
+        let s
+        try {
+          s = await invoke('get_status')
+        } catch (e) {
+          toast('Could not load status: ' + e, true)
+          return
+        }
+
+        // Header chips
+        const chipSource = document.getElementById('chip-source')
+        if (s.rotate_interval > 0 && s.sources.length > 1) {
+          chipSource.textContent = `${SOURCE_NAMES[s.active_source] ?? s.active_source} ↻`
+        } else {
+          chipSource.textContent = SOURCE_NAMES[s.active_source] ?? s.active_source
+        }
+        const timerChip = document.getElementById('chip-timer')
+        if (s.timer_active) {
+          timerChip.textContent =
+            s.rotate_interval > 0 ? `Rotate · ${s.rotate_interval}m` : `Timer on · ${s.timer_time}`
+          timerChip.classList.add('on')
+        } else {
+          timerChip.textContent = 'Timer off'
+          timerChip.classList.remove('on')
+        }
+        document.getElementById('chip-de').textContent = s.desktop_env ?? '-'
+
+        // Wallpaper card - source checkboxes
+        for (const cb of document.querySelectorAll('.source-check input[type="checkbox"]')) {
+          cb.checked = s.sources.includes(cb.value)
+        }
+        const riEl = document.getElementById('rotate-interval')
+        if (!riEl.dataset.dirty) riEl.value = s.rotate_interval
+
+        if (s.latest_image) {
+          const fname = s.latest_image.replace(/.*[\\/]/, '')
+          document.getElementById('last-image').textContent = `Last: ${fname}`
+        } else {
+          document.getElementById('last-image').textContent = ''
+        }
+
+        // Schedule card
+        document.getElementById('timer-time').value = s.timer_time
+        document.getElementById('btn-enable').disabled = s.timer_active
+        document.getElementById('btn-disable').disabled = !s.timer_active
+
+        // Advanced card. Only populate on first load (don't overwrite mid-edit)
+        const sarEl = document.getElementById('adv-sar')
+        const zmcEl = document.getElementById('adv-zmc')
+        const uaEl = document.getElementById('adv-ua')
+        if (!sarEl.dataset.dirty) sarEl.value = s.config_ar_fallback
+        if (!zmcEl.dataset.dirty) zmcEl.value = s.zoom_min_coverage
+        if (!uaEl.dataset.dirty) uaEl.value = s.user_agent
+
+        await loadMeta()
+        scheduleRotationRefresh(s.rotate_interval)
+      }
+
+      // Auto-refresh UI at each rotation boundary so metadata stays current.
+      let rotationTimer = null
+      function scheduleRotationRefresh(rotateInterval) {
+        clearTimeout(rotationTimer)
+        rotationTimer = null
+        if (rotateInterval <= 0) return
+        const intervalMs = rotateInterval * 60 * 1000
+        const msUntilNext = intervalMs - (Date.now() % intervalMs) + 500
+        rotationTimer = setTimeout(loadStatus, msUntilNext)
+      }
+
+      // Mark fields dirty when edited so loadStatus doesn't clobber them
+      document.getElementById('rotate-interval').addEventListener('input', (e) => {
+        e.target.dataset.dirty = '1'
+      })
+      for (const id of ['adv-sar', 'adv-zmc', 'adv-ua']) {
+        document.getElementById(id).addEventListener('input', (e) => {
+          e.target.dataset.dirty = '1'
+        })
+      }
+
+      // ── Wallpaper handlers ────────────────────────────────────────────────────
+
+      document.getElementById('btn-apply-sources').addEventListener('click', async (e) => {
+        const sources = [...document.querySelectorAll('.source-check input[type="checkbox"]:checked')].map(
+          (cb) => cb.value
+        )
+        if (sources.length === 0) {
+          toast('Select at least one source.', true)
+          return
+        }
+        const rotateInterval = parseInt(document.getElementById('rotate-interval').value, 10) || 0
+        delete document.getElementById('rotate-interval').dataset.dirty
+        await run(e.target, async () => {
+          const msg = await invoke('apply_sources', { sources, rotateInterval, force: false })
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-update').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('update', { force: false })
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-force-update').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('update', { force: true })
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-random').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('random_wallpaper')
+          await loadStatus()
+          return msg
+        })
+      })
+
+      // ── Schedule handlers ─────────────────────────────────────────────────────
+
+      document.getElementById('btn-apply-time').addEventListener('click', async (e) => {
+        const time = document.getElementById('timer-time').value
+        await run(e.target, async () => {
+          const msg = await invoke('set_time', { time })
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-enable').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('enable_timer')
+          await loadStatus()
+          return msg
+        })
+      })
+
+      document.getElementById('btn-disable').addEventListener('click', async (e) => {
+        await run(e.target, async () => {
+          const msg = await invoke('disable_timer')
+          await loadStatus()
+          return msg
+        })
+      })
+
+      // ── Advanced save ─────────────────────────────────────────────────────────
+
+      document.getElementById('btn-save-adv').addEventListener('click', async (e) => {
+        const sar = document.getElementById('adv-sar').value.trim()
+        const zmc = document.getElementById('adv-zmc').value.trim()
+        const ua = document.getElementById('adv-ua').value.trim()
+
+        await run(e.target, async () => {
+          await invoke('set_config_value', { key: 'screen_aspect_ratio', value: sar })
+          await invoke('set_config_value', { key: 'zoom_min_coverage', value: zmc })
+          await invoke('set_config_value', { key: 'user_agent', value: ua })
+          // Clear dirty flags now that values are saved
+          for (const id of ['adv-sar', 'adv-zmc', 'adv-ua']) {
+            delete document.getElementById(id).dataset.dirty
+          }
+          await loadStatus()
+          return 'Advanced settings saved.'
+        })
+      })
+
+      // ── Init ──────────────────────────────────────────────────────────────────
+
+      loadStatus()
+    </script>
+  </body>
+</html>

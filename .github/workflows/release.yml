@@ -1,0 +1,234 @@
+# .github/workflows/release.yml
+#
+# Flow:
+#   1. release-please maintains the version PR. On merge it creates a DRAFT
+#      release. A draft release does NOT create the git tag yet.
+#   2. build-tauri runs only when a release was created, builds every platform,
+#      and uploads installers to that draft release by its release ID.
+#   3. publish-release flips the draft to published but ONLY if every build
+#      leg succeeded. Publishing is what finally creates the v* git tag.
+
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    # Map release-please's per-package outputs to clean job outputs.
+    # The "src-tauri--" prefix matches the package path in release-please-config.json.
+    # If you move the crate, update both the config path AND these prefixes.
+    outputs:
+      release_created: ${{ steps.release.outputs['src-tauri--release_created'] }}
+      tag_name: ${{ steps.release.outputs['src-tauri--tag_name'] }}
+      release_id: ${{ steps.release.outputs['src-tauri--id'] }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          # Default token is sufficient. Nothing here needs to trigger
+          # another workflow.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-tauri:
+    needs: release-please
+    if: ${{ success() && needs.release-please.outputs.release_created == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Apple Silicon -> .dmg + .app (aarch64)
+          - platform: macos-latest
+            rust-targets: aarch64-apple-darwin
+            args: '--target aarch64-apple-darwin'
+          # macOS Intel -> .dmg + .app (x86_64)
+          - platform: macos-latest-large
+            rust-targets: x86_64-apple-darwin
+            args: '--target x86_64-apple-darwin'
+          # Linux -> .deb, .rpm, .AppImage  (oldest runner = widest glibc support)
+          - platform: ubuntu-latest
+            rust-targets: ''
+            args: ''
+          # Windows -> .msi (WiX) + setup .exe (NSIS)
+          - platform: windows-latest
+            rust-targets: ''
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # The draft release has no tag ref yet, so we just build the merge commit
+      # that triggered this run. It already carries the bumped version.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl wget file \
+            libxdo-dev \
+            libssl-dev \
+            rpm
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # OPTIONAL - UPX, Linux only. Compressing the macOS binary breaks code
+      # signing / notarization; on Windows it commonly triggers AV/SmartScreen.
+      # Needs a two-step build (compile -> upx -> bundle), so it's left out of
+      # the single tauri-action call below.
+      #
+      - name: Compress Linux binary with UPX
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get install -y upx-ucl
+          upx --best --lzma src-tauri/target/release/backdrop
+
+      - name: Build and upload to the draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- macOS signing + notarization (required for a distributable .dmg) ---
+          #APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          #APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          #APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          #APPLE_ID: ${{ secrets.APPLE_ID }}
+          #APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          #APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # --- Windows signing (optional) ---
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Upload straight to the existing draft by ID. Unambiguous, and works
+          # even though the tag ref doesn't exist yet.
+          releaseId: ${{ needs.release-please.outputs.release_id }}
+          # Keep it a draft; the publish-release job below un-drafts it.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  build-flatpak:
+    needs: release-please
+    if: ${{ success() && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate Cargo offline sources
+        run: |
+          pip3 install --quiet toml aiohttp
+          curl -fsSL -o flatpak-cargo-generator.py \
+            "https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/main/cargo/flatpak-cargo-generator.py"
+          python3 flatpak-cargo-generator.py \
+            src-tauri/Cargo.lock \
+            -o flatpak/generated-cargo-sources.json
+
+      - name: Install Flatpak and builder
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub \
+            org.gnome.Platform//47 \
+            org.gnome.Sdk//47 \
+            org.freedesktop.Sdk.Extension.rust-stable//24.08
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder \
+            --user \
+            --repo=flatpak-repo \
+            --force-clean \
+            build-dir \
+            flatpak/com.andrewensley.backdrop.yml
+
+      - name: Bundle Flatpak
+        run: |
+          flatpak build-bundle \
+            flatpak-repo \
+            com.andrewensley.backdrop.flatpak \
+            com.andrewensley.backdrop
+
+      - name: Upload Flatpak bundle to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload \
+            --clobber \
+            "${{ needs.release-please.outputs.tag_name }}" \
+            com.andrewensley.backdrop.flatpak
+
+  build-snap:
+    needs: release-please
+    if: ${{ success() && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Build Snap
+        uses: snapcore/action-build@v1
+        id: build
+
+      - name: Upload Snap to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload \
+            --clobber \
+            "${{ needs.release-please.outputs.tag_name }}" \
+            "${{ steps.build.outputs.snap }}"
+
+  publish-release:
+    needs: [release-please, build-tauri, build-flatpak, build-snap]
+    # success() ensures we ONLY publish if every build leg passed. Without it,
+    # a custom `if` would let this run even after build-tauri failed, publishing
+    # an incomplete release.
+    if: ${{ success() && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish (un-draft) the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/releases/${{ needs.release-please.outputs.release_id }}" \
+            -F draft=false

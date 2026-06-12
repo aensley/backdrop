@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=backdrop
+Comment=Set a new desktop wallpaper every day from various sources
+Exec=backdrop update
+Icon=com.andrewensley.backdrop
+Type=Application
+Categories=Utility;
+Terminal=true

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Deep wallpaper-style background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1040" />
+      <stop offset="100%" stop-color="#050d1a" />
+    </linearGradient>
+
+    <!-- Ambient glow behind the letter -->
+    <radialGradient id="glow" cx="289" cy="255" r="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Clip to the rounded square -->
+    <clipPath id="clip">
+      <rect width="512" height="512" rx="80" />
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#bg)" />
+
+  <g clip-path="url(#clip)">
+    <!-- Ambient glow -->
+    <ellipse cx="289" cy="255" rx="250" ry="240" fill="url(#glow)" />
+
+    <!--
+      Letter "b" - geometric construction:
+        Stem:  x 158–224 (66 px wide), y 60–450 (390 px tall)
+        Bowl:  right half of circle centered at (224, 320), r=130
+               top (224,190), rightmost (354,320), bottom (224,450)
+        Two quarter-arcs with sweep=0 trace the right semicircle cleanly.
+    -->
+
+    <!-- Long shadow: four copies offset toward bottom-right, fading with distance -->
+    <path
+      d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+      fill="#6d28d9" opacity="0.05" transform="translate(140,140)" />
+    <path
+      d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+      fill="#6d28d9" opacity="0.09" transform="translate(100,100)" />
+    <path
+      d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+      fill="#6d28d9" opacity="0.15" transform="translate(60,60)" />
+    <path
+      d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+      fill="#6d28d9" opacity="0.24" transform="translate(25,25)" />
+
+    <!-- The "b" letter - white, centered horizontally in the 512px canvas -->
+    <path
+      d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+      fill="#ffffff" />
+  </g>
+</svg>

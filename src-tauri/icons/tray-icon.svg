@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Monochrome tray icon - transparent background, solid "b".
+    Fill with currentColor so the OS/shell can tint it for light/dark mode.
+  -->
+  <path d="M 158 60 L 158 450 L 224 450 A 130 130 0 0 0 354 320 A 130 130 0 0 0 224 190 L 224 60 Z"
+    fill="currentColor" />
+</svg>
