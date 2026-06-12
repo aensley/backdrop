@@ -385,8 +385,12 @@ detect_de() {
   local combined
   combined="$(printf '%s:%s' "${XDG_CURRENT_DESKTOP:-}" "${DESKTOP_SESSION:-}" | tr '[:lower:]' '[:upper:]')"
   case "$combined" in
-    *GNOME*) echo "gnome" ;;
+    *GNOME* | *CINNAMON*) echo "gnome" ;;
     *KDE*) echo "kde" ;;
+    *XFCE*) echo "xfce" ;;
+    *MATE*) echo "mate" ;;
+    *COSMIC*) echo "cosmic" ;;
+    *LXQT*) echo "lxqt" ;;
     *) echo "unknown" ;;
   esac
 }
@@ -421,11 +425,66 @@ set_wallpaper_kde() {
   die "KDE: qdbus and plasma-apply-wallpaperimage are both unavailable"
 }
 
+# Map pick_picture_option output to XFCE image-style values:
+#   zoom   -> 5  Zoomed (fill screen, crop overflow)
+#   scaled -> 4  Scaled (fit within screen, letterbox)
+xfce_imagestyle() { case "$1" in zoom) echo 5 ;; scaled) echo 4 ;; *) echo 5 ;; esac }
+
+set_wallpaper_xfce() {
+  local file="$1" opt="$2" style props prop
+  style="$(xfce_imagestyle "$opt")"
+  props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$')" ||
+    die "XFCE: xfconf-query failed"
+  [ -z "$props" ] && die "XFCE: no backdrop properties found; open Display settings once to initialise them"
+  while IFS= read -r prop; do
+    xfconf-query -c xfce4-desktop -p "$prop" -s "$file"
+    xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" -s "$style"
+  done <<<"$props"
+}
+
+set_wallpaper_mate() {
+  local file="$1" opt="$2"
+  gsettings set org.mate.background picture-filename "$file"
+  gsettings set org.mate.background picture-options "$opt"
+}
+
+# Map pick_picture_option output to pcmanfm-qt --wallpaper-mode values:
+#   zoom   -> zoom  (fill screen, crop overflow)
+#   scaled -> fit   (fit within screen, letterbox)
+lxqt_wallpapermode() { case "$1" in zoom) echo "zoom" ;; scaled) echo "fit" ;; *) echo "zoom" ;; esac }
+
+set_wallpaper_lxqt() {
+  local file="$1" opt="$2"
+  command -v pcmanfm-qt &>/dev/null || die "LXQt: pcmanfm-qt is not installed"
+  pcmanfm-qt --set-wallpaper "$file" --wallpaper-mode "$(lxqt_wallpapermode "$opt")"
+}
+
+# Map pick_picture_option output to COSMIC ScalingMode (RON enum variant):
+#   zoom   -> Zoom                 (fill screen, crop overflow)
+#   scaled -> Fit([0.0, 0.0, 0.0]) (fit within screen, black letterbox)
+cosmic_scalingmode() { case "$1" in zoom) echo "Zoom" ;; scaled) echo "Fit([0.0, 0.0, 0.0])" ;; *) echo "Zoom" ;; esac }
+
+set_wallpaper_cosmic() {
+  local file="$1" opt="$2" cfg_dir mode tmp
+  cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic/com.system76.CosmicBackground/v1"
+  mode="$(cosmic_scalingmode "$opt")"
+  mkdir -p "$cfg_dir"
+  tmp="$(mktemp "$cfg_dir/all.XXXXXX")"
+  printf '(\n    output: "all",\n    source: Path("%s"),\n    filter_by_theme: false,\n    rotation_frequency: 900,\n    filter_method: Lanczos,\n    scaling_mode: %s,\n    sampling_method: Alphanumeric,\n)\n' \
+    "$file" "$mode" >"$tmp"
+  mv "$tmp" "$cfg_dir/all"
+  printf 'true\n' >"$cfg_dir/same-on-all"
+}
+
 set_wallpaper() {
   local file="$1" opt="$2"
   case "$(detect_de)" in
     gnome) set_wallpaper_gnome "$file" "$opt" ;;
     kde) set_wallpaper_kde "$file" "$opt" ;;
+    xfce) set_wallpaper_xfce "$file" "$opt" ;;
+    mate) set_wallpaper_mate "$file" "$opt" ;;
+    cosmic) set_wallpaper_cosmic "$file" "$opt" ;;
+    lxqt) set_wallpaper_lxqt "$file" "$opt" ;;
     *)
       if command -v gsettings &>/dev/null; then
         set_wallpaper_gnome "$file" "$opt"
@@ -592,6 +651,27 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
             2>/dev/null | tr -d '[:space:]')"
           case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
+        fi
+      elif [ "$de" = "xfce" ]; then
+        prop="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' | head -1)"
+        if [ -n "$prop" ]; then
+          style="$(xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" 2>/dev/null)"
+          case "$style" in 5) method="zoom" ;; 4) method="scaled" ;; *) method="${style:+image-style=$style}" ;; esac
+        fi
+      elif [ "$de" = "mate" ]; then
+        method="$(gsettings get org.mate.background picture-options 2>/dev/null | tr -d "'")"
+      elif [ "$de" = "lxqt" ]; then
+        lxqt_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/pcmanfm-qt/lxqt/settings.conf"
+        mode="$(sed -n 's/^WallpaperMode=//p' "$lxqt_cfg" 2>/dev/null)"
+        case "$mode" in zoom) method="zoom" ;; fit) method="scaled" ;; *) method="${mode:+wallpaper-mode=$mode}" ;; esac
+      elif [ "$de" = "cosmic" ]; then
+        cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic/com.system76.CosmicBackground/v1"
+        if [ -f "$cfg_dir/all" ]; then
+          if grep -q 'scaling_mode:[[:space:]]*Zoom' "$cfg_dir/all" 2>/dev/null; then
+            method="zoom"
+          elif grep -q 'scaling_mode:[[:space:]]*Fit' "$cfg_dir/all" 2>/dev/null; then
+            method="scaled"
+          fi
         fi
       else
         method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"

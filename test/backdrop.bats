@@ -93,11 +93,73 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# xfce_imagestyle
+# ---------------------------------------------------------------------------
+
+@test "xfce_imagestyle: zoom -> 5" {
+  run xfce_imagestyle "zoom"
+  [ "$output" = "5" ]
+}
+
+@test "xfce_imagestyle: scaled -> 4" {
+  run xfce_imagestyle "scaled"
+  [ "$output" = "4" ]
+}
+
+@test "xfce_imagestyle: unknown input defaults to 5" {
+  run xfce_imagestyle "other"
+  [ "$output" = "5" ]
+}
+
+# ---------------------------------------------------------------------------
+# lxqt_wallpapermode
+# ---------------------------------------------------------------------------
+
+@test "lxqt_wallpapermode: zoom -> zoom" {
+  run lxqt_wallpapermode "zoom"
+  [ "$output" = "zoom" ]
+}
+
+@test "lxqt_wallpapermode: scaled -> fit" {
+  run lxqt_wallpapermode "scaled"
+  [ "$output" = "fit" ]
+}
+
+@test "lxqt_wallpapermode: unknown input defaults to zoom" {
+  run lxqt_wallpapermode "other"
+  [ "$output" = "zoom" ]
+}
+
+# ---------------------------------------------------------------------------
+# cosmic_scalingmode
+# ---------------------------------------------------------------------------
+
+@test "cosmic_scalingmode: zoom -> Zoom" {
+  run cosmic_scalingmode "zoom"
+  [ "$output" = "Zoom" ]
+}
+
+@test "cosmic_scalingmode: scaled -> Fit" {
+  run cosmic_scalingmode "scaled"
+  [ "$output" = "Fit([0.0, 0.0, 0.0])" ]
+}
+
+@test "cosmic_scalingmode: unknown input defaults to Zoom" {
+  run cosmic_scalingmode "other"
+  [ "$output" = "Zoom" ]
+}
+
+# ---------------------------------------------------------------------------
 # detect_de
 # ---------------------------------------------------------------------------
 
 @test "detect_de: detects GNOME from XDG_CURRENT_DESKTOP" {
   XDG_CURRENT_DESKTOP="GNOME" DESKTOP_SESSION="" run detect_de
+  [ "$output" = "gnome" ]
+}
+
+@test "detect_de: detects Cinnamon from XDG_CURRENT_DESKTOP" {
+  XDG_CURRENT_DESKTOP="X-Cinnamon" DESKTOP_SESSION="" run detect_de
   [ "$output" = "gnome" ]
 }
 
@@ -109,6 +171,26 @@ teardown() {
 @test "detect_de: detects KDE from DESKTOP_SESSION" {
   XDG_CURRENT_DESKTOP="" DESKTOP_SESSION="kde-plasma" run detect_de
   [ "$output" = "kde" ]
+}
+
+@test "detect_de: detects XFCE from XDG_CURRENT_DESKTOP" {
+  XDG_CURRENT_DESKTOP="XFCE" DESKTOP_SESSION="" run detect_de
+  [ "$output" = "xfce" ]
+}
+
+@test "detect_de: detects MATE from XDG_CURRENT_DESKTOP" {
+  XDG_CURRENT_DESKTOP="MATE" DESKTOP_SESSION="" run detect_de
+  [ "$output" = "mate" ]
+}
+
+@test "detect_de: detects COSMIC from XDG_CURRENT_DESKTOP" {
+  XDG_CURRENT_DESKTOP="COSMIC" DESKTOP_SESSION="" run detect_de
+  [ "$output" = "cosmic" ]
+}
+
+@test "detect_de: detects LXQt from XDG_CURRENT_DESKTOP" {
+  XDG_CURRENT_DESKTOP="LXQt" DESKTOP_SESSION="" run detect_de
+  [ "$output" = "lxqt" ]
 }
 
 @test "detect_de: returns unknown for unrecognised desktop" {

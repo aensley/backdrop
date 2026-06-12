@@ -1,14 +1,14 @@
 {
-  "name": "backdrop",
+  "name": "backdrop-cli",
   "private": true,
   "version": "1.0.0",
-  "homepage": "https://github.com/aensley/backdrop#readme",
+  "homepage": "https://github.com/aensley/backdrop-cli#readme",
   "bugs": {
-    "url": "https://github.com/aensley/backdrop/issues"
+    "url": "https://github.com/aensley/backdrop-cli/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aensley/backdrop.git"
+    "url": "git+https://github.com/aensley/backdrop-cli.git"
   },
   "license": "MIT",
   "scripts": {
