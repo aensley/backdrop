@@ -25,6 +25,12 @@ CONFIG_FILE="$CONFIG_DIR/config"
 LEGACY_SOURCE_FILE="$CONFIG_DIR/source" # pre-config-file location of the active source
 VALID_SOURCES=(iotd apod bing wmc eo earth natgeo)
 
+# Metadata for the most recently resolved image; set by apply_wallpaper after
+# parsing META_* lines from resolver output.
+META_TITLE=""
+META_DESC=""
+META_URL=""
+
 # Built-in defaults, can be overriden in the config file.
 # All four live in the config file ($CONFIG_FILE) and can be edited there:
 #   source              active wallpaper source (also set via: backdrop set <src>)
@@ -36,7 +42,7 @@ VALID_SOURCES=(iotd apod bing wmc eo earth natgeo)
 SOURCE="iotd"
 SCREEN_ASPECT_RATIO="1.7778"
 ZOOM_MIN_COVERAGE="0.55"
-USER_AGENT="backdrop/1.0.0 (personal daily wallpaper script)"
+USER_AGENT="backdrop/1.0 (personal daily wallpaper script)"
 TIMER_TIME="08:00"
 
 mkdir -p "$STATE_DIR" "$CONFIG_DIR"
@@ -104,7 +110,7 @@ screen_aspect_ratio = $SCREEN_ASPECT_RATIO
 zoom_min_coverage = $ZOOM_MIN_COVERAGE
 
 # HTTP User-Agent string sent with all requests. Override if a source blocks the default.
-# user_agent = backdrop/1.0.0 (personal daily wallpaper script)
+# user_agent = backdrop/1.0 (personal daily wallpaper script)
 
 # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).
 # Also settable with: backdrop set-time HH:MM
@@ -134,30 +140,60 @@ load_config() {
 
 # NASA Image of the Day
 resolve_iotd() {
-  local feed url
+  local feed url item title desc link
   feed="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.nasa.gov/feeds/iotd-feed/")" || return 1
-  url="$(sed -n 's/.*<enclosure url="\([^"]*\)".*/\1/p' <<<"$feed" | head -1)" || true
+  item="$(awk '/<item>/{f=1} f{print} /<\/item>/{if(f)exit}' <<<"$feed")"
+  url="$(sed -n 's/.*<enclosure url="\([^"]*\)".*/\1/p' <<<"$item" | head -1)" || true
+  title="$(grep -m1 '<title' <<<"$item" | sed 's/.*<title[^>]*>//;s/<\/title>//;s/<!\[CDATA\[//;s/\]\]>//' || true)"
+  desc="$(grep -m1 '<description>' <<<"$item" | sed 's/.*<description>//;s/<\/description>//' || true)"
+  link="$(grep -m1 '<link>' <<<"$item" | sed 's/.*<link>//;s/<\/link>//' || true)"
+  printf 'META_TITLE:%s\n' "$(_strip_html "$title")"
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$desc")"
+  printf 'META_URL:%s\n' "${link:-https://www.nasa.gov/image-of-the-day/}"
   [ -n "$url" ] && printf '%s\n' "$url"
   return 0
 }
 
 # NASA Astronomy Picture of the Day
 resolve_apod() {
-  local page rel
+  local page rel _out title desc
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://apod.nasa.gov/apod/astropix.html")" || return 1
   rel="$(grep -ioE 'href="image/[^"]+\.(jpg|jpeg|png|gif)"' <<<"$page" |
     head -1 | sed -E 's/.*href="([^"]+)".*/\1/I')" || true
+  _out="$(python3 -c '
+import re, sys
+page = sys.stdin.read()
+tm = re.search(r"<center>\s*<b>([^<]+)</b>\s*<br", page, re.IGNORECASE)
+title = tm.group(1).strip() if tm else ""
+em = re.search(r"<b>\s*Explanation:\s*</b>(.*?)(?=<p>|<hr|</body>)", page, re.DOTALL | re.IGNORECASE)
+if em:
+    desc = re.sub(r"<[^>]+>", "", em.group(1))
+    desc = " ".join(desc.split())[:400]
+else:
+    desc = ""
+print(title)
+print(desc)
+' <<<"$page" 2>/dev/null)" || true
+  title="$(sed -n '1p' <<<"$_out")"
+  desc="$(sed -n '2p' <<<"$_out")"
+  [ -n "$title" ] && printf 'META_TITLE:%s\n' "$title"
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$desc"
+  printf 'META_URL:%s\n' "https://apod.nasa.gov/apod/astropix.html"
   [ -n "$rel" ] && printf '%s\n' "https://apod.nasa.gov/apod/$rel"
   return 0
 }
 
 # Bing image of the day
 resolve_bing() {
-  local json urlbase url
+  local json _out urlbase url
   json="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US")" || return 1
-  urlbase="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["urlbase"])' <<<"$json")" || true
-  url="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["images"][0]["url"])' <<<"$json")" || true
+  _out="$(python3 -c 'import json,sys; d=json.load(sys.stdin)["images"][0]; [print(d.get(k,"")) for k in ("urlbase","url","title","copyright")]' <<<"$json" 2>/dev/null)"
+  urlbase="$(sed -n '1p' <<<"$_out")"
+  url="$(sed -n '2p' <<<"$_out")"
+  [ -n "$(sed -n '3p' <<<"$_out")" ] && printf 'META_TITLE:%s\n' "$(sed -n '3p' <<<"$_out")"
+  [ -n "$(sed -n '4p' <<<"$_out")" ] && printf 'META_DESC:%s\n' "$(sed -n '4p' <<<"$_out")"
+  printf 'META_URL:%s\n' "https://www.bing.com/"
   [ -n "$urlbase" ] && printf '%s\n' "https://www.bing.com${urlbase}_UHD.jpg" # 4K
   [ -n "$url" ] && printf '%s\n' "https://www.bing.com${url}"                 # 1920x1080 fallback
   return 0
@@ -166,12 +202,25 @@ resolve_bing() {
 # Wikimedia Commons Picture of the Day
 # (The global $USER_AGENT is a descriptive string, as Wikimedia's API policy asks for.)
 resolve_wmc() {
-  local date resp file enc
+  local date resp file enc title desc
   date="$(date +%Y-%m-%d)"
   resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://commons.wikimedia.org/w/api.php?action=expandtemplates&format=json&prop=wikitext&text=%7B%7BPotd/$date%7D%7D")" || return 1
   file="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["expandtemplates"]["wikitext"])' <<<"$resp" 2>/dev/null)" || return 1
   [ -n "$file" ] || return 0
+  title="$(printf '%s' "$file" | sed 's/^File://;s/\.[^.]*$//;s/_/ /g')"
+  printf 'META_TITLE:%s\n' "$title"
+  resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
+    "https://commons.wikimedia.org/w/api.php?action=expandtemplates&format=json&prop=wikitext&text=%7B%7BPotd/${date}%20(en)%7D%7D")" || true
+  desc="$(python3 -c '
+import re, json, sys
+text = json.load(sys.stdin)["expandtemplates"]["wikitext"].strip()
+text = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", text)
+text = re.sub(r"\{\{[^}]*\}\}", "", text)
+print(" ".join(text.split())[:300])
+' <<<"$resp" 2>/dev/null)" || true
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$desc"
+  printf 'META_URL:%s\n' "https://commons.wikimedia.org/wiki/File:$(printf '%s' "${file#File:}" | tr ' ' '_')"
   enc="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$file")"
   resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url&iiurlwidth=3840&titles=File:$enc")" || return 1
@@ -184,11 +233,18 @@ print(p["url"])' <<<"$resp" 2>/dev/null || return 1
 
 # NASA Earth Observatory Image of the Day
 resolve_eo() {
-  local feed item base
+  local feed item base title desc link
   feed="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
     "https://earthobservatory.nasa.gov/feeds/image-of-the-day.rss")" || return 1
   item="$(awk '/<item>/{f=1} f{print} /<\/item>/{if(f)exit}' <<<"$feed")"
   base="$(grep -oiE 'https://assets\.science\.nasa\.gov/dynamicimage/[^"?]+\.(jpg|jpeg|png)' <<<"$item" | head -1)" || true
+  title="$(grep -m1 '<title' <<<"$item" | sed 's/.*<title[^>]*>//;s/<\/title>//;s/<!\[CDATA\[//;s/\]\]>//' || true)"
+  desc="$(grep -m1 '<description>' <<<"$item" | sed 's/.*<!\[CDATA\[//;s/<[^>]*>//g;s/\]\]>.*//' || true)"
+  link="$(grep -m1 '<link>' <<<"$item" | sed 's/.*<link>//;s/<\/link>//' || true)"
+  [ -z "$link" ] && link="$(grep -oiE 'https://earthobservatory\.nasa\.gov/images/[0-9]+[^"< ]*' <<<"$item" | head -1 || true)"
+  printf 'META_TITLE:%s\n' "$(_strip_html "$title")"
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$desc")"
+  printf 'META_URL:%s\n' "${link:-https://earthobservatory.nasa.gov/}"
   [ -n "$base" ] || return 0
   printf '%s\n' "${base}?w=3840" # ~4K-wide rendering
   printf '%s\n' "$base"          # CDN-default size as fallback
@@ -197,10 +253,16 @@ resolve_eo() {
 
 # National Geographic Photo of the Day
 resolve_natgeo() {
-  local page url
+  local page url og_title og_desc og_url
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.nationalgeographic.com/photo-of-the-day/")" || return 1
   url="$(grep -oiE 'property="og:image" content="https://i\.natgeofe\.com/[^"]+"' <<<"$page" |
     sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_desc="$(grep -oiE 'property="og:description" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_url="$(grep -oiE 'property="og:url" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$og_title"
+  [ -n "$og_desc" ] && printf 'META_DESC:%s\n' "$og_desc"
+  printf 'META_URL:%s\n' "${og_url:-https://www.nationalgeographic.com/photo-of-the-day/}"
   [ -n "$url" ] || return 0
   printf '%s\n' "${url}?w=5120" # max CDN resolution (~4600px wide)
   printf '%s\n' "$url"          # original as fallback
@@ -209,10 +271,19 @@ resolve_natgeo() {
 
 # Earth.com Image of the Day
 resolve_earth() {
-  local page url
+  local page article_url article og_title og_desc og_url url
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.earth.com/gallery/images-of-the-day/")" || return 1
-  url="$(grep -oiE 'href="(https://cff2\.earth\.com/uploads/[^"]+\.(jpg|jpeg|png))" target="__blank"' <<<"$page" |
+  article_url="$(grep -oiE 'href="https://www\.earth\.com/image/[^"]+"' <<<"$page" |
     sed -E 's/href="([^"]+)".*/\1/' | head -1)" || true
+  [ -n "$article_url" ] || return 0
+  article="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "$article_url")" || return 1
+  og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_desc="$(grep -oiE 'property="og:description" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_url="$(grep -oiE 'property="og:url" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  url="$(grep -oiE 'https://cff2\.earth\.com/uploads/[^"]+\.(jpg|jpeg|png)' <<<"$article" | head -1)" || true
+  [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$(_strip_html "$og_title")"
+  [ -n "$og_desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$og_desc")"
+  printf 'META_URL:%s\n' "${og_url:-$article_url}"
   [ -n "$url" ] && printf '%s\n' "$url"
   return 0
 }
@@ -384,13 +455,53 @@ is_valid() {
   return 1
 }
 
-apply_wallpaper() {
-  local src="$1" candidates dest url ok=0
-  is_valid "$src" || die "unknown source '$src' (valid: ${VALID_SOURCES[*]})"
+# Strip HTML tags and decode common entities from $1.
+_strip_html() {
+  local s="$1"
+  s="$(printf '%s' "$s" | sed 's/<[^>]*>//g')"
+  s="${s//&amp;/&}"
+  s="${s//&lt;/<}"
+  s="${s//&gt;/>}"
+  s="${s//&quot;/\"}"
+  s="${s//&#39;/\'}"
+  s="${s//&#x27;/\'}"
+  printf '%s' "$s" | tr -s ' \t\n' ' ' | sed 's/^ //;s/ $//'
+}
 
-  if ! candidates="$(resolve_"$src")"; then
+# Write title/desc/url metadata alongside a downloaded image (as a .meta file).
+_write_meta() {
+  local dest="$1" meta t d
+  meta="${dest%.jpg}.meta"
+  t="$(printf '%s' "$META_TITLE" | tr -s '\n\t' '  ' | sed 's/  */ /g;s/^ //;s/ $//')"
+  d="$(printf '%s' "$META_DESC" | tr -s '\n\t' '  ' | sed 's/  */ /g;s/^ //;s/ $//' | cut -c1-200)"
+  {
+    [ -n "$t" ] && printf 'title = %s\n' "$t"
+    [ -n "$d" ] && printf 'desc = %s\n' "$d"
+    [ -n "$META_URL" ] && printf 'url = %s\n' "$META_URL"
+  } >"$meta"
+}
+
+# Read one key from a .meta file (same key = value format as cfg_get).
+_meta_get() {
+  local file="$1" key="$2"
+  [ -r "$file" ] || return 0
+  sed -n -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*(.*)$/\1/p" "$file" | tail -n1
+}
+
+apply_wallpaper() {
+  local src="$1" full_output candidates dest url ok=0
+  is_valid "$src" || die "unknown source '$src' (valid: ${VALID_SOURCES[*]})"
+  META_TITLE=""
+  META_DESC=""
+  META_URL=""
+
+  if ! full_output="$(resolve_"$src")"; then
     die "failed to reach $src source"
   fi
+  candidates="$(grep -v '^META_' <<<"$full_output" || true)"
+  META_TITLE="$(grep '^META_TITLE:' <<<"$full_output" | sed 's/^META_TITLE://' | tail -1 || true)"
+  META_DESC="$(grep '^META_DESC:' <<<"$full_output" | sed 's/^META_DESC://' | tail -1 || true)"
+  META_URL="$(grep '^META_URL:' <<<"$full_output" | sed 's/^META_URL://' | tail -1 || true)"
   if [ -z "$candidates" ]; then
     echo "backdrop: $src has no image today (e.g. APOD video day); wallpaper unchanged."
     return 0
@@ -409,8 +520,10 @@ apply_wallpaper() {
   local opt
   opt="$(pick_picture_option "$dest")"
   set_wallpaper "$dest" "$opt"
+  _write_meta "$dest"
 
   find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -type f -mtime +14 -delete
+  find "$STATE_DIR" -maxdepth 1 -name '*.meta' -type f -mtime +14 -delete
   echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest"
 }
 
@@ -459,6 +572,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       echo "Active source:     $(get_source)"
       latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
       [ -n "$latest" ] && echo "Last image:        $latest"
+      if [ -n "$latest" ]; then
+        meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
+        [ -n "$meta_val" ] && echo "Image title:       $meta_val"
+        meta_val="$(_meta_get "${latest%.jpg}.meta" desc)"
+        [ -n "$meta_val" ] && echo "Description:       $meta_val"
+        meta_val="$(_meta_get "${latest%.jpg}.meta" url)"
+        [ -n "$meta_val" ] && echo "Image URL:         $meta_val"
+      fi
       de="$(detect_de)"
       method=""
       if [ "$de" = "kde" ]; then

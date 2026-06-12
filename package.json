@@ -20,9 +20,10 @@
     "update": "npx npm-check-updates -u && npm update"
   },
   "devDependencies": {
+    "@semantic-release/git": "^10.0.1",
     "bats": "^1.13.0",
     "czg": "^1.13.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.8.4",
     "simple-git-hooks": "^2.13.1"
   },
   "allowScripts": {

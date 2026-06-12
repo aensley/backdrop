@@ -242,17 +242,21 @@ teardown() {
 # resolve_earth
 # ---------------------------------------------------------------------------
 
-@test "resolve_earth: returns URL from matching download link" {
+@test "resolve_earth: returns URL and metadata from article page" {
   local stubdir
   stubdir="$(mktemp -d)"
   cat >"$stubdir/curl" <<'STUB'
 #!/usr/bin/env bash
-echo '<a href="https://cff2.earth.com/uploads/2025/10/01/photo.jpg" target="__blank"></a>'
+echo '<a href="https://www.earth.com/image/test-image/"></a>'
+echo '<meta property="og:title" content="Test Title"/>'
+echo '<meta property="og:description" content="Test description."/>'
+echo '<meta property="og:url" content="https://www.earth.com/image/test-image/"/>'
+echo '"https://cff2.earth.com/uploads/2025/10/01/photo.jpg"'
 STUB
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_earth
   [ "$status" -eq 0 ]
-  [ "$output" = "https://cff2.earth.com/uploads/2025/10/01/photo.jpg" ]
+  [ "$(grep -v '^META_' <<<"$output")" = "https://cff2.earth.com/uploads/2025/10/01/photo.jpg" ]
   rm -rf "$stubdir"
 }
 
@@ -266,14 +270,14 @@ STUB
   rm -rf "$stubdir"
 }
 
-@test "resolve_earth: returns empty output when no download link found" {
+@test "resolve_earth: returns empty image output when no article link found" {
   local stubdir
   stubdir="$(mktemp -d)"
   printf '#!/usr/bin/env bash\necho "<html>no image here</html>"\n' >"$stubdir/curl"
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_earth
   [ "$status" -eq 0 ]
-  [ "$output" = "" ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
   rm -rf "$stubdir"
 }
 
@@ -282,7 +286,7 @@ STUB
 # ---------------------------------------------------------------------------
 
 @test "resolve_natgeo: returns high-res and base URLs from og:image" {
-  local stubdir
+  local stubdir url_lines
   stubdir="$(mktemp -d)"
   cat >"$stubdir/curl" <<'STUB'
 #!/usr/bin/env bash
@@ -291,8 +295,9 @@ STUB
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_natgeo
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "https://i.natgeofe.com/n/abc123/photo.jpg?w=5120" ]
-  [ "${lines[1]}" = "https://i.natgeofe.com/n/abc123/photo.jpg" ]
+  url_lines="$(grep -v '^META_' <<<"$output")"
+  [ "$(sed -n '1p' <<<"$url_lines")" = "https://i.natgeofe.com/n/abc123/photo.jpg?w=5120" ]
+  [ "$(sed -n '2p' <<<"$url_lines")" = "https://i.natgeofe.com/n/abc123/photo.jpg" ]
   rm -rf "$stubdir"
 }
 
@@ -306,7 +311,7 @@ STUB
   rm -rf "$stubdir"
 }
 
-@test "resolve_natgeo: returns empty output when no natgeofe og:image found" {
+@test "resolve_natgeo: returns empty image output when no natgeofe og:image found" {
   local stubdir
   stubdir="$(mktemp -d)"
   cat >"$stubdir/curl" <<'STUB'
@@ -316,6 +321,66 @@ STUB
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_natgeo
   [ "$status" -eq 0 ]
-  [ "$output" = "" ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
   rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# _meta_get / _write_meta
+# ---------------------------------------------------------------------------
+
+@test "_meta_get: reads a key from a meta file" {
+  mkdir -p "$STATE_DIR"
+  printf 'title = My Image\ndesc = Some desc\nurl = https://example.com/\n' >"$STATE_DIR/test.meta"
+  run _meta_get "$STATE_DIR/test.meta" "title"
+  [ "$output" = "My Image" ]
+}
+
+@test "_meta_get: returns empty for a missing file" {
+  run _meta_get "$STATE_DIR/nonexistent.meta" "title"
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
+@test "_meta_get: returns empty for a missing key" {
+  mkdir -p "$STATE_DIR"
+  printf 'url = https://example.com/\n' >"$STATE_DIR/test.meta"
+  run _meta_get "$STATE_DIR/test.meta" "title"
+  [ "$output" = "" ]
+}
+
+@test "_write_meta: writes non-empty fields to a .meta file" {
+  mkdir -p "$STATE_DIR"
+  local dest="$STATE_DIR/src-2025-01-01.jpg"
+  touch "$dest"
+  # shellcheck disable=SC2034
+  META_TITLE="Test Image"
+  # shellcheck disable=SC2034
+  META_DESC="A test description"
+  # shellcheck disable=SC2034
+  META_URL="https://example.com/"
+  _write_meta "$dest"
+  run _meta_get "${dest%.jpg}.meta" "title"
+  [ "$output" = "Test Image" ]
+  run _meta_get "${dest%.jpg}.meta" "desc"
+  [ "$output" = "A test description" ]
+  run _meta_get "${dest%.jpg}.meta" "url"
+  [ "$output" = "https://example.com/" ]
+}
+
+@test "_write_meta: omits empty fields from the .meta file" {
+  mkdir -p "$STATE_DIR"
+  local dest="$STATE_DIR/src-2025-01-01.jpg"
+  touch "$dest"
+  # shellcheck disable=SC2034
+  META_TITLE=""
+  # shellcheck disable=SC2034
+  META_DESC=""
+  # shellcheck disable=SC2034
+  META_URL="https://example.com/"
+  _write_meta "$dest"
+  run _meta_get "${dest%.jpg}.meta" "title"
+  [ "$output" = "" ]
+  run _meta_get "${dest%.jpg}.meta" "url"
+  [ "$output" = "https://example.com/" ]
 }
