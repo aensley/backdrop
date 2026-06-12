@@ -34,14 +34,18 @@ META_DESC=""
 META_URL=""
 
 # Built-in defaults, can be overriden in the config file.
-# All four live in the config file ($CONFIG_FILE) and can be edited there:
-#   source              active wallpaper source (also set via: backdrop set <src>)
+# All live in the config file ($CONFIG_FILE) and can be edited there:
+#   source              active wallpaper source(s); space-separated list or "all"
+#                       (also set via: backdrop set <src> [src...])
+#   rotate_interval     minutes between source rotations; 0 = disabled
+#                       (also set via: backdrop set-rotate-interval <minutes>)
 #   screen_aspect_ratio screen aspect ratio used if auto-detect fails
 #                       (16:9=1.7778  16:10=1.6  21:9=2.3333  4:3=1.3333)
 #   zoom_min_coverage   crop tolerance; if "zoom" would show less than this
 #                       fraction of the image, use "scaled" instead (0.55 ~= allow up to ~45% crop)
 #   user_agent          HTTP User-Agent sent with all requests
 SOURCE="iotd"
+ROTATE_INTERVAL=0
 SCREEN_ASPECT_RATIO="1.7778"
 ZOOM_MIN_COVERAGE="0.55"
 USER_AGENT="backdrop/${VERSION%.*} (personal daily wallpaper script)"
@@ -98,9 +102,18 @@ ensure_config() {
   cat >"$CONFIG_FILE" <<EOF
 # backdrop configuration  (key = value; lines starting with # are ignored)
 
-# Active wallpaper source: iotd | apod | bing | wmc | eo | earth | natgeo
-# Also settable with: backdrop set <source>
+# Active wallpaper source(s): iotd | apod | bing | wmc | eo | earth | natgeo
+# Single source:    source = iotd
+# Multiple sources: source = iotd apod bing
+# All sources:      source = all
+# Also settable with: backdrop set <source> [source...]
 source = $seed
+
+# How often to rotate between sources, in minutes (0 = disabled).
+# Only applies when multiple sources are configured.
+# When rotation is enabled, the timer fires at this interval instead of timer_time.
+# Also settable with: backdrop set-rotate-interval <minutes>
+rotate_interval = $ROTATE_INTERVAL
 
 # Screen aspect ratio used only if auto-detection (/sys/class/drm) fails.
 # 16:9 = 1.7778   16:10 = 1.6   21:9 = 2.3333   4:3 = 1.3333
@@ -115,6 +128,7 @@ zoom_min_coverage = $ZOOM_MIN_COVERAGE
 # user_agent = backdrop/${VERSION%.*} (personal daily wallpaper script)
 
 # Time of day to run the daily wallpaper update (HH:MM, 24-hour format).
+# Only applies when rotation is disabled (rotate_interval = 0).
 # Also settable with: backdrop set-time HH:MM
 timer_time = $TIMER_TIME
 EOF
@@ -132,6 +146,8 @@ load_config() {
   [ -n "$v" ] && USER_AGENT="$v"
   v="$(cfg_get timer_time)"
   [ -n "$v" ] && TIMER_TIME="$v"
+  v="$(cfg_get rotate_interval)"
+  [[ "$v" =~ ^[0-9]+$ ]] && ROTATE_INTERVAL="$v"
   return 0
 }
 
@@ -366,18 +382,34 @@ pick_picture_option() {
 
 # --- Core -------------------------------------------------------------------
 
-# Write a systemd drop-in that sets the timer's OnCalendar to HH:MM.
-apply_timer_time() {
-  local time="$1"
+# Write a systemd drop-in that configures the timer based on current settings.
+# Uses OnUnitActiveSec when rotation is active, OnCalendar (daily) otherwise.
+apply_timer_config() {
   local dropin_dir="$BASE_CONFIG_DIR/systemd/user/backdrop.timer.d"
   mkdir -p "$dropin_dir"
-  # Empty OnCalendar= clears the inherited value before setting the new one.
-  cat >"$dropin_dir/time.conf" <<EOF
+  if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+    # Empty assignments clear any inherited values before setting the new ones.
+    cat >"$dropin_dir/time.conf" <<EOF
 [Timer]
 OnCalendar=
-OnCalendar=*-*-* ${time}:00
+OnUnitActiveSec=
+OnUnitActiveSec=${ROTATE_INTERVAL}min
 EOF
+  else
+    cat >"$dropin_dir/time.conf" <<EOF
+[Timer]
+OnUnitActiveSec=
+OnCalendar=
+OnCalendar=*-*-* ${TIMER_TIME}:00
+EOF
+  fi
   systemctl --user daemon-reload
+}
+
+apply_timer_time() {
+  local time="$1"
+  TIMER_TIME="$time"
+  apply_timer_config
 }
 
 # --- Desktop environment / wallpaper setters --------------------------------
@@ -500,14 +532,46 @@ set_wallpaper() {
   esac
 }
 
-get_source() {
+# Returns all configured source names (space-separated); expands "all" to every valid source.
+get_sources() {
   local s
   s="$(cfg_get source)"
-  [ -n "$s" ] && {
+  if [ -n "$s" ]; then
+    [ "$s" = "all" ] && {
+      printf '%s' "${VALID_SOURCES[*]}"
+      return
+    }
     printf '%s' "$s"
     return
-  }
+  fi
   if [ -r "$LEGACY_SOURCE_FILE" ]; then tr -d '[:space:]' <"$LEGACY_SOURCE_FILE"; else printf '%s' "$SOURCE"; fi
+}
+
+# Returns the first configured source name (single-source accessor).
+get_source() {
+  local srcs
+  srcs="$(get_sources)"
+  printf '%s' "${srcs%% *}"
+}
+
+# Returns the 0-based index into a source list for a given unix timestamp (seconds).
+_rotation_index() {
+  local now_sec="$1" interval="$2" count="$3"
+  echo $(((now_sec / 60 / interval) % count))
+}
+
+# Returns the source to use right now, applying time-based rotation if configured.
+get_active_source() {
+  local -a srcs
+  IFS=' ' read -ra srcs <<<"$(get_sources)"
+  local n="${#srcs[@]}"
+  if [ "$n" -le 1 ] || [ "$ROTATE_INTERVAL" -le 0 ]; then
+    printf '%s' "${srcs[0]:-$SOURCE}"
+    return
+  fi
+  local idx
+  idx="$(_rotation_index "$(date +%s)" "$ROTATE_INTERVAL" "$n")"
+  printf '%s' "${srcs[$idx]}"
 }
 
 is_valid() {
@@ -643,16 +707,17 @@ backdrop v${VERSION}
 Usage: backdrop <command>
 
 Commands:
-  update [--force]       Refresh wallpaper from the active source (default command)
-  set <source> [--force] Switch active source and refresh now
-  set-time <HH:MM>       Set the daily run time (24-hour); restarts timer if active
-  status                 Show the active source and last image
-  random [--force]       Refresh from a randomly chosen source (does not change active source)
-  enable                 Enable the daily systemd --user timer (backdrop.timer)
-  disable                Disable the daily systemd --user timer
-  upgrade                Check for and install the latest version from GitHub
-  uninstall [--purge]    Remove backdrop and (with --purge) delete config and cached wallpapers
-  help                   Show this help
+  update [--force]                Refresh wallpaper from the active source (default command)
+  set <source...> [--force]       Switch active source(s) and refresh now; use 'all' for all sources
+  set-time <HH:MM>                Set the daily run time (24-hour); restarts timer if active
+  set-rotate-interval <minutes>   Set rotation interval in minutes; 0 to disable rotation
+  status                          Show the active source and last image
+  random [--force]                Refresh from a randomly chosen source (does not change active source)
+  enable                          Enable the systemd --user timer (backdrop.timer)
+  disable                         Disable the systemd --user timer
+  upgrade                         Check for and install the latest version from GitHub
+  uninstall [--purge]             Remove backdrop and (with --purge) delete config and cached wallpapers
+  help                            Show this help
 
 Sources:
   bing    Bing image of the day
@@ -674,20 +739,65 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   case "$cmd" in
     update | refresh)
       [ "${2:-}" = "--force" ] && FORCE=true
-      apply_wallpaper "$(get_source)"
+      apply_wallpaper "$(get_active_source)"
       ;;
     set | use)
-      s="${2:-}"
-      is_valid "$s" || die "set: choose a source (${VALID_SOURCES[*]})"
-      [ "${3:-}" = "--force" ] && FORCE=true
-      cfg_set source "$s"
-      echo "backdrop: active source is now '$s'"
-      apply_wallpaper "$s"
+      srcs=()
+      for arg in "${@:2}"; do
+        [ "$arg" = "--force" ] && {
+          FORCE=true
+          continue
+        }
+        srcs+=("$arg")
+      done
+      [ "${#srcs[@]}" -eq 0 ] && die "set: choose one or more sources (${VALID_SOURCES[*]}) or 'all'"
+      if [ "${#srcs[@]}" -eq 1 ] && [ "${srcs[0]}" = "all" ]; then
+        srcs=("${VALID_SOURCES[@]}")
+      fi
+      for s in "${srcs[@]}"; do
+        is_valid "$s" || die "set: unknown source '$s' (valid: ${VALID_SOURCES[*]})"
+      done
+      cfg_set source "${srcs[*]}"
+      timer_changed=false
+      if [ "${#srcs[@]}" -gt 1 ]; then
+        if [ "$ROTATE_INTERVAL" -le 0 ]; then
+          ROTATE_INTERVAL=30
+          cfg_set rotate_interval 30
+          timer_changed=true
+        fi
+        echo "backdrop: active sources: ${srcs[*]} (rotating every ${ROTATE_INTERVAL} min)"
+      else
+        if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+          ROTATE_INTERVAL=0
+          cfg_set rotate_interval 0
+          timer_changed=true
+        fi
+        echo "backdrop: active source is now '${srcs[0]}'"
+      fi
+      if $timer_changed; then
+        apply_timer_config
+        if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+          systemctl --user restart backdrop.timer
+        fi
+      fi
+      apply_wallpaper "$(get_active_source)"
       ;;
     status)
-      echo "Active source:     $(get_source)"
+      active_srcs="$(get_sources)"
+      active_src="$(get_active_source)"
+      if [[ "$active_srcs" == *" "* ]]; then
+        echo "Active sources:    $active_srcs"
+        echo "Current source:    $active_src"
+        [ "$ROTATE_INTERVAL" -gt 0 ] && echo "Rotate interval:   ${ROTATE_INTERVAL} min"
+      else
+        echo "Active source:     $active_src"
+      fi
       if systemctl --user is-enabled --quiet backdrop.timer 2>/dev/null; then
-        echo "Timer:             enabled (runs at $TIMER_TIME)"
+        if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+          echo "Timer:             enabled (rotating every ${ROTATE_INTERVAL} min)"
+        else
+          echo "Timer:             enabled (runs at $TIMER_TIME)"
+        fi
       else
         echo "Timer:             disabled"
       fi
@@ -748,9 +858,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
       ;;
     enable)
-      apply_timer_time "$TIMER_TIME"
+      apply_timer_config
       systemctl --user enable --now backdrop.timer
-      echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
+      if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+        echo "backdrop: timer enabled (rotating every ${ROTATE_INTERVAL} min)."
+      else
+        echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
+      fi
       ;;
     disable)
       systemctl --user disable --now backdrop.timer
@@ -761,11 +875,34 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
       cfg_set timer_time "$t"
       apply_timer_time "$t"
-      if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+      if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+        echo "backdrop: timer time saved to $t (rotation is active; daily time takes effect when rotation is disabled)."
+      elif systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
         systemctl --user restart backdrop.timer
         echo "backdrop: timer time set to $t and timer restarted."
       else
         echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
+      fi
+      ;;
+    set-rotate-interval)
+      t="${2:-}"
+      [[ "$t" =~ ^[0-9]+$ ]] || die "set-rotate-interval: expected number of minutes (0 to disable), e.g. 60"
+      cfg_set rotate_interval "$t"
+      ROTATE_INTERVAL="$t"
+      apply_timer_config
+      if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+        systemctl --user restart backdrop.timer
+        if [ "$t" -gt 0 ]; then
+          echo "backdrop: rotate interval set to ${t} min and timer restarted."
+        else
+          echo "backdrop: rotation disabled, timer reset to daily at ${TIMER_TIME}."
+        fi
+      else
+        if [ "$t" -gt 0 ]; then
+          echo "backdrop: rotate interval set to ${t} min (run 'backdrop enable' to start the timer)."
+        else
+          echo "backdrop: rotation disabled (run 'backdrop enable' to start the daily timer)."
+        fi
       fi
       ;;
     upgrade)

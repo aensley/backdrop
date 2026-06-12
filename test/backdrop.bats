@@ -495,3 +495,103 @@ STUB
   run _meta_get "${dest%.jpg}.meta" "url"
   [ "$output" = "https://example.com/" ]
 }
+
+# ---------------------------------------------------------------------------
+# get_sources
+# ---------------------------------------------------------------------------
+
+@test "get_sources: returns default when config does not exist" {
+  run get_sources
+  [ "$output" = "iotd" ]
+}
+
+@test "get_sources: returns single configured source" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = bing" >"$CONFIG_FILE"
+  run get_sources
+  [ "$output" = "bing" ]
+}
+
+@test "get_sources: returns space-separated list for multiple sources" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = iotd apod bing" >"$CONFIG_FILE"
+  run get_sources
+  [ "$output" = "iotd apod bing" ]
+}
+
+@test "get_sources: expands 'all' to every valid source" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = all" >"$CONFIG_FILE"
+  run get_sources
+  [ "$output" = "iotd apod bing wmc eo earth natgeo" ]
+}
+
+# ---------------------------------------------------------------------------
+# _rotation_index
+# ---------------------------------------------------------------------------
+
+@test "_rotation_index: returns 0 at epoch with any interval" {
+  run _rotation_index 0 60 3
+  [ "$output" = "0" ]
+}
+
+@test "_rotation_index: advances to next source after one interval" {
+  # 60 minutes elapsed, interval=60, 3 sources -> index 1
+  run _rotation_index $((60 * 60)) 60 3
+  [ "$output" = "1" ]
+}
+
+@test "_rotation_index: wraps around to 0 after all sources used" {
+  # 180 minutes elapsed, interval=60, 3 sources -> index 0
+  run _rotation_index $((180 * 60)) 60 3
+  [ "$output" = "0" ]
+}
+
+@test "_rotation_index: floors partial intervals" {
+  # 90 minutes elapsed, interval=60, 3 sources -> floor(90/60)=1 -> index 1
+  run _rotation_index $((90 * 60)) 60 3
+  [ "$output" = "1" ]
+}
+
+@test "_rotation_index: works with large intervals" {
+  # 2880 minutes (2 days) elapsed, interval=1440 (daily), 3 sources -> index 2
+  run _rotation_index $((2880 * 60)) 1440 3
+  [ "$output" = "2" ]
+}
+
+# ---------------------------------------------------------------------------
+# get_active_source
+# ---------------------------------------------------------------------------
+
+@test "get_active_source: returns single source when only one configured" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = apod" >"$CONFIG_FILE"
+  # shellcheck disable=SC2034
+  ROTATE_INTERVAL=0
+  run get_active_source
+  [ "$output" = "apod" ]
+}
+
+@test "get_active_source: returns first source when rotation is disabled" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = iotd apod bing" >"$CONFIG_FILE"
+  # shellcheck disable=SC2034
+  ROTATE_INTERVAL=0
+  run get_active_source
+  [ "$output" = "iotd" ]
+}
+
+@test "get_active_source: returns correct source based on rotation index" {
+  mkdir -p "$CONFIG_DIR"
+  echo "source = iotd apod bing" >"$CONFIG_FILE"
+  # Stub date to return a fixed timestamp: 60 minutes elapsed -> index 1 -> apod
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\necho %s\n' $((60 * 60)) >"$stubdir/date"
+  chmod +x "$stubdir/date"
+  # shellcheck disable=SC2034
+  ROTATE_INTERVAL=60
+  PATH="$stubdir:$PATH" run get_active_source
+  [ "$output" = "apod" ]
+  rm -rf "$stubdir"
+}

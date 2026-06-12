@@ -39,7 +39,7 @@ To run the full test suite (ShellCheck + BATS):
 npm test
 ```
 
-Tests live in `test/backdrop.bats` and cover the pure and file-I/O functions in `src/backdrop.sh`; things like config read/write, source validation, image dimension detection, wallpaper option selection, metadata read/write, and version comparison. Source resolver functions are tested using a stub `curl` script injected via `PATH`.
+Tests live in `test/backdrop.bats` and cover the pure and file-I/O functions in `src/backdrop.sh`; things like config read/write, source validation, image dimension detection, wallpaper option selection, metadata read/write, version comparison, and source rotation. Source resolver functions are tested using a stub `curl` script injected via `PATH`. The `_rotation_index` helper takes a unix timestamp as a parameter rather than calling `date`, so rotation tests run without needing to stub `date`; `get_active_source` integration tests stub `date` via `PATH` in the same way as `curl`.
 
 ## Image metadata
 
