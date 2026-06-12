@@ -776,7 +776,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       fi
       if $timer_changed; then
         apply_timer_config
-        systemctl --user is-active --quiet backdrop.timer 2>/dev/null && systemctl --user restart backdrop.timer || true
+        if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+          systemctl --user restart backdrop.timer
+        fi
       fi
       apply_wallpaper "$(get_active_source)"
       ;;
