@@ -16,7 +16,7 @@ Run it once manually or let a systemd timer handle it on a schedule.
 
 ## Requirements
 
-- GNOME or KDE Plasma desktop
+- A supported desktop environment (see below)
 - `curl`, `python3` (standard on most distros)
 - systemd (for the daily timer)
 
@@ -24,11 +24,12 @@ Run it once manually or let a systemd timer handle it on a schedule.
 
 backdrop supports the following Desktop Environments.
 
-| Desktop               | Method                        | Notes                                                                           |
-| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| GNOME                 | `gsettings`                   |                                                                                 |
-| KDE Plasma            | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
-| KDE Plasma (fallback) | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
+| Desktop                   | Method                        | Notes                                                                           |
+| ------------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
+| GNOME                     | `gsettings`                   |                                                                                 |
+| KDE Plasma                | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
+| KDE Plasma (fallback)     | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
+| Other (Cinnamon, MATE...) | `gsettings` or `qdbus`        | Tries gsettings first, then qdbus; set `XDG_CURRENT_DESKTOP` if detection fails |
 
 ## Installation
 
@@ -42,7 +43,7 @@ Or clone the repo and run the installer locally:
 
 ```bash
 git clone https://github.com/aensley/backdrop-cli.git \
-  && cd backdrop && ./install.sh
+  && cd backdrop-cli && ./install.sh
 ```
 
 The installer:
@@ -63,9 +64,10 @@ backdrop <command>
 | `update`           | Refresh wallpaper from the active source (default)             |
 | `set <source>`     | Switch active source and refresh now                           |
 | `set-time <HH:MM>` | Set the daily run time (24-hour); restarts timer if active     |
-| `status`           | Show the active source and last image                          |
+| `status`           | Show the active source, last image, and image metadata         |
 | `random`           | Refresh from a randomly chosen source (does not change active) |
 | `enable`           | Enable the daily systemd --user timer                          |
+| `uninstall`        | Remove backdrop from this system                               |
 | `help`             | Show help                                                      |
 
 ## Sources
@@ -92,13 +94,13 @@ This will also immediately update the wallpaper from the new source.
 
 The config file lives at `~/.config/backdrop/config` and is created on first run. You can edit it directly or use the `set` / `set-time` commands.
 
-| Key                   | Default              | Description                                                                                                    |
-| --------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `source`              | `iotd`               | Active wallpaper source                                                                                        |
-| `screen_aspect_ratio` | `1.7778`             | Fallback aspect ratio if auto-detect fails (16:9=1.7778, 16:10=1.6, 21:9=2.3333, 4:3=1.3333)                   |
-| `zoom_min_coverage`   | `0.55`               | Crop tolerance: if filling the screen would crop more than this fraction of the image, use scaled mode instead |
-| `user_agent`          | `backdrop/1.0 (...)` | HTTP User-Agent sent with all requests                                                                         |
-| `timer_time`          | `08:00`              | Time of day to run the daily update (24-hour HH:MM)                                                            |
+| Key                   | Default              | Description                                                                                                      |
+| --------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `source`              | `iotd`               | Active wallpaper source                                                                                          |
+| `screen_aspect_ratio` | `1.7778`             | Fallback aspect ratio if auto-detect fails (16:9=1.7778, 16:10=1.6, 21:9=2.3333, 4:3=1.3333)                     |
+| `zoom_min_coverage`   | `0.55`               | Crop tolerance: if zoom-filling would keep less than this fraction of the image visible, use scaled mode instead |
+| `user_agent`          | `backdrop/1.0 (...)` | HTTP User-Agent sent with all requests                                                                           |
+| `timer_time`          | `08:00`              | Time of day to run the daily update (24-hour HH:MM)                                                              |
 
 ## Uninstallation
 
