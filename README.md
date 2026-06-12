@@ -1,7 +1,7 @@
 # backdrop-cli
 
 <p align="center">
-  <img src="icon.svg" alt="backdrop" width="128"/><br/>
+  <img src="icon/icon.svg" alt="backdrop" width="128"/><br/>
   <a href="https://github.com/aensley/backdrop-cli/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop-cli.svg?logo=gnubash&label=backdrop-cli&logoColor=fff" alt="Version"/></a>
   <a href="https://github.com/aensley/backdrop-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop-cli.svg" alt="License"/></a>
 </p>
@@ -24,12 +24,17 @@ Run it once manually or let a systemd timer handle it on a schedule.
 
 backdrop supports the following Desktop Environments.
 
-| Desktop                   | Method                        | Notes                                                                           |
-| ------------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| GNOME                     | `gsettings`                   |                                                                                 |
-| KDE Plasma                | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
-| KDE Plasma (fallback)     | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
-| Other (Cinnamon, MATE...) | `gsettings` or `qdbus`        | Tries gsettings first, then qdbus; set `XDG_CURRENT_DESKTOP` if detection fails |
+| Desktop               | Method                        | Notes                                                                           |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
+| GNOME                 | `gsettings`                   |                                                                                 |
+| Cinnamon              | `gsettings`                   |                                                                                 |
+| KDE Plasma            | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
+| KDE Plasma (fallback) | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
+| XFCE                  | `xfconf-query`                | Sets wallpaper and fill mode on all monitors; open Display settings once first  |
+| MATE                  | `gsettings`                   |                                                                                 |
+| COSMIC                | config file                   | Writes `~/.config/cosmic/com.system76.CosmicBackground/v1/all` (RON format)     |
+| LXQt                  | `pcmanfm-qt`                  |                                                                                 |
+| Other                 | `gsettings` or `qdbus`        | Tries gsettings first, then qdbus; set `XDG_CURRENT_DESKTOP` if detection fails |
 
 ## Installation
 

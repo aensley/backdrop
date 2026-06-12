@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 SYSTEMD_USER_DIR="$BASE_CONFIG_DIR/systemd/user"
-REPO_RAW="https://raw.githubusercontent.com/aensley/backdrop/main/src"
+REPO_RAW="https://raw.githubusercontent.com/aensley/backdrop-cli/main/src"
 
 # Resolve the local src/ directory only when running from a real file, not piped stdin.
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then
