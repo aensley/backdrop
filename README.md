@@ -64,20 +64,23 @@ The installer:
 backdrop <command>
 ```
 
-| Command                  | Description                                                    |
-| ------------------------ | -------------------------------------------------------------- |
-| `update [--force]`       | Refresh wallpaper from the active source (default)             |
-| `set <source> [--force]` | Switch active source and refresh now                           |
-| `set-time <HH:MM>`       | Set the daily run time (24-hour); restarts timer if active     |
-| `status`                 | Show the active source, last image, and image metadata         |
-| `random [--force]`       | Refresh from a randomly chosen source (does not change active) |
-| `enable`                 | Enable the daily systemd --user timer                          |
-| `disable`                | Disable the daily systemd --user timer                         |
-| `upgrade`                | Check for and install the latest version from GitHub           |
-| `uninstall`              | Remove backdrop from this system                               |
-| `help`                   | Show help                                                      |
+| Command                         | Description                                                        |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `update [--force]`              | Refresh wallpaper from the active source (default)                 |
+| `set <source...> [--force]`     | Switch active source(s) and refresh now; use `all` for all sources |
+| `set-time <HH:MM>`              | Set the daily run time (24-hour); restarts timer if active         |
+| `set-rotate-interval <minutes>` | Set rotation interval in minutes; 0 to disable                     |
+| `status`                        | Show the active source, last image, and image metadata             |
+| `random [--force]`              | Refresh from a randomly chosen source (does not change active)     |
+| `enable`                        | Enable the systemd --user timer                                    |
+| `disable`                       | Disable the systemd --user timer                                   |
+| `upgrade`                       | Check for and install the latest version from GitHub               |
+| `uninstall`                     | Remove backdrop from this system                                   |
+| `help`                          | Show help                                                          |
 
 ## Sources
+
+One, multiple, or all sources can be active simultaneously.
 
 | Key      | Name                                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------------- |
@@ -89,13 +92,47 @@ backdrop <command>
 | `natgeo` | National Geographic Photo of the Day<br>https://www.nationalgeographic.com/photo-of-the-day/                  |
 | `wmc`    | Wikimedia Commons Picture of the Day<br>https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day         |
 
-Switch sources at any time:
+Switch to a single source at any time:
 
 ```bash
 backdrop set apod
 ```
 
-This will also immediately update the wallpaper from the new source.
+Or enable multiple sources to rotate between them:
+
+```bash
+# Enable two or more specific sources
+backdrop set iotd apod bing
+```
+
+To enable all sources:
+
+```bash
+# Enable all sources
+backdrop set all
+```
+
+The wallpaper updates immediately when you run `set`, and the active source is reflected in `backdrop status`.
+
+## Rotation
+
+With multiple sources enabled, you can rotate between them at a fixed interval. When you set multiple sources, rotation is automatically enabled at 30 minutes:
+
+```bash
+# Rotate between three sources every 30 minutes (auto-set default)
+backdrop set iotd apod bing
+
+# Rotate through all sources
+backdrop set all
+
+# Change the rotation interval (e.g. every 2 hours)
+backdrop set-rotate-interval 120
+
+# Disable rotation and go back to a single source
+backdrop set iotd
+```
+
+When rotation is active, the systemd timer fires at the rotation interval instead of the daily time set by `set-time`. The active source is determined by a time-slot calculation: `slot = (current_minute / interval) % num_sources`, so the same source is always shown for the full duration of its slot.
 
 ## Configuration
 
@@ -103,11 +140,12 @@ The config file lives at `~/.config/backdrop/config` and is created on first run
 
 | Key                   | Default              | Description                                                                                                      |
 | --------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `source`              | `iotd`               | Active wallpaper source                                                                                          |
+| `source`              | `iotd`               | Active wallpaper source(s); space-separated list or `all`                                                        |
+| `rotate_interval`     | `0`                  | Minutes between source rotations; 0 to disable (uses `timer_time` for daily updates instead)                     |
 | `screen_aspect_ratio` | `1.7778`             | Fallback aspect ratio if auto-detect fails (16:9=1.7778, 16:10=1.6, 21:9=2.3333, 4:3=1.3333)                     |
 | `zoom_min_coverage`   | `0.55`               | Crop tolerance: if zoom-filling would keep less than this fraction of the image visible, use scaled mode instead |
 | `user_agent`          | `backdrop/1.0 (...)` | HTTP User-Agent sent with all requests                                                                           |
-| `timer_time`          | `08:00`              | Time of day to run the daily update (24-hour HH:MM)                                                              |
+| `timer_time`          | `08:00`              | Time of day to run the daily update (24-hour HH:MM); only applies when `rotate_interval = 0`                     |
 
 ## Uninstallation
 
