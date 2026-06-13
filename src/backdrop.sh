@@ -383,16 +383,20 @@ pick_picture_option() {
 # --- Core -------------------------------------------------------------------
 
 # Write a systemd drop-in that configures the timer based on current settings.
-# Uses OnUnitActiveSec when rotation is active, OnCalendar (daily) otherwise.
+# Uses OnActiveSec+OnUnitActiveSec when rotation is active, OnCalendar (daily) otherwise.
 apply_timer_config() {
   local dropin_dir="$BASE_CONFIG_DIR/systemd/user/backdrop.timer.d"
   mkdir -p "$dropin_dir"
   if [ "$ROTATE_INTERVAL" -gt 0 ]; then
     # Empty assignments clear any inherited values before setting the new ones.
+    # OnActiveSec fires relative to when the timer starts (first trigger, even if
+    # backdrop.service has never been activated by systemd). OnUnitActiveSec repeats.
     cat >"$dropin_dir/time.conf" <<EOF
 [Timer]
 OnCalendar=
+OnStartupSec=
 OnUnitActiveSec=
+OnActiveSec=${ROTATE_INTERVAL}min
 OnUnitActiveSec=${ROTATE_INTERVAL}min
 EOF
   else

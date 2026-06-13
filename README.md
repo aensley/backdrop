@@ -1,9 +1,10 @@
 # backdrop-cli
 
 <p align="center">
-  <img src="icon/icon.svg" alt="backdrop" width="128"/><br/>
+  <img src="src/icon.svg" alt="backdrop" width="128"/><br/>
   <a href="https://github.com/aensley/backdrop-cli/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop-cli.svg?logo=gnubash&label=backdrop-cli&logoColor=fff" alt="Version"/></a>
   <a href="https://github.com/aensley/backdrop-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop-cli.svg" alt="License"/></a>
+  <a href="https://qlty.sh/gh/aensley/projects/backdrop-cli"><img src="https://qlty.sh/gh/aensley/projects/backdrop-cli/maintainability.svg" alt="Maintainability" /></a>
 </p>
 
 Set a new desktop wallpaper every day from various sources.
