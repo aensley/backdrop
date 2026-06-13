@@ -5,7 +5,7 @@ BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 SYSTEMD_USER_DIR="$BASE_CONFIG_DIR/systemd/user"
 REPO="aensley/backdrop-cli"
 
-# Resolve the local src/ directory only when running from a real file, not piped stdin.
+# Resolve the script's directory only when running from a real file, not piped stdin.
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
@@ -35,8 +35,8 @@ fi
 fetch() {
   local name dest="$2"
   name="$(basename "$1")"
-  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/$name" ]; then
-    cp "$SCRIPT_DIR/src/$name" "$dest"
+  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$name" ]; then
+    cp "$SCRIPT_DIR/$name" "$dest"
   else
     curl -fsSL "$REPO_RAW/$name" -o "$dest"
   fi
