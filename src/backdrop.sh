@@ -16,7 +16,7 @@
 # natgeo: https://www.nationalgeographic.com/photo-of-the-day/
 # wmc:    https://commons.wikimedia.org/wiki/Commons:Picture_of_the_day
 
-VERSION="1.3.0"
+VERSION="1.3.1"
 
 set -euo pipefail
 
