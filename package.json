@@ -13,9 +13,9 @@
   "license": "MIT",
   "scripts": {
     "commit": "czg",
-    "test": "shellcheck src/backdrop.sh install.sh test/backdrop.bats && bats test/",
-    "lint": "prettier --check . && ~/go/bin/shfmt -d -i 2 -ci src/backdrop.sh install.sh test/backdrop.bats",
-    "lint:fix": "prettier --write . && ~/go/bin/shfmt -w -i 2 -ci src/backdrop.sh install.sh test/backdrop.bats",
+    "test": "shellcheck src/backdrop.sh src/install.sh test/backdrop.bats && bats test/",
+    "lint": "prettier --check . && ~/go/bin/shfmt -d -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats",
+    "lint:fix": "prettier --write . && ~/go/bin/shfmt -w -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats",
     "prepare": "npx simple-git-hooks",
     "update": "npx npm-check-updates -u && npm update"
   },

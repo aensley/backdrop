@@ -13,11 +13,17 @@ Set a new desktop wallpaper every day from various sources.
 
 backdrop-cli fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
 
-Run it once manually or let a systemd timer handle it on a schedule.
+Run it manually or let a systemd timer handle it on a schedule.
+
+## Quick Install
+
+```bash
+curl -fsSL https://ensl.ee/backdrop-cli | bash
+```
 
 ## Requirements
 
-- A supported desktop environment (see below)
+- A supported Linux desktop environment (see below)
 - `curl`, `python3` (standard on most distros)
 - systemd (for the daily timer)
 
@@ -28,28 +34,22 @@ backdrop-cli supports the following Desktop Environments.
 | Desktop               | Method                        | Notes                                                                           |
 | --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
 | GNOME                 | `gsettings`                   |                                                                                 |
-| Cinnamon              | `gsettings`                   |                                                                                 |
 | KDE Plasma            | `qdbus6` or `qdbus`           | Sets the wallpaper and fill mode on all desktops                                |
 | KDE Plasma (fallback) | `plasma-apply-wallpaperimage` | Used if qdbus is unavailable; requires Plasma 5.21+, fill mode not configurable |
-| XFCE                  | `xfconf-query`                | Sets wallpaper and fill mode on all monitors; open Display settings once first  |
+| Xfce                  | `xfconf-query`                | Sets wallpaper and fill mode on all monitors; open Display settings once first  |
+| Cinnamon              | `gsettings`                   |                                                                                 |
 | MATE                  | `gsettings`                   |                                                                                 |
-| COSMIC                | config file                   | Writes `~/.config/cosmic/com.system76.CosmicBackground/v1/all` (RON format)     |
 | LXQt                  | `pcmanfm-qt`                  |                                                                                 |
+| COSMIC                | config file                   | Writes `~/.config/cosmic/com.system76.CosmicBackground/v1/all` (RON format)     |
 | Other                 | `gsettings` or `qdbus`        | Tries gsettings first, then qdbus; set `XDG_CURRENT_DESKTOP` if detection fails |
 
 ## Installation
 
-Install with a single command:
-
-```bash
-curl -fsSL https://ensl.ee/backdrop-cli | bash
-```
-
-Or clone the repo and run the installer locally:
+Use the [quick install script](#quick-install) or clone the repo and run the installer locally:
 
 ```bash
 git clone https://github.com/aensley/backdrop-cli.git \
-  && cd backdrop-cli && ./install.sh
+  && cd backdrop-cli/src && ./install.sh
 ```
 
 The installer:
