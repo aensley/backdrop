@@ -777,6 +777,19 @@ STUB
 }
 
 # ---------------------------------------------------------------------------
+# current state file
+# ---------------------------------------------------------------------------
+
+@test "_write_meta: current state file tracks last-set wallpaper path" {
+  mkdir -p "$STATE_DIR"
+  local dest="$STATE_DIR/iotd-2026-06-15.jpg"
+  touch "$dest"
+  printf '%s\n' "$dest" >"$STATE_DIR/current"
+  run cat "$STATE_DIR/current"
+  [ "$output" = "$dest" ]
+}
+
+# ---------------------------------------------------------------------------
 # _version_gt
 # ---------------------------------------------------------------------------
 
