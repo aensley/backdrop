@@ -633,6 +633,7 @@ apply_wallpaper() {
   if [ -f "$dest" ] && [ "$FORCE" = false ]; then
     opt="$(pick_picture_option "$dest")"
     set_wallpaper "$dest" "$opt"
+    printf '%s\n' "$dest" >"$STATE_DIR/current"
     echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest (cached)"
     return 0
   fi
@@ -660,6 +661,7 @@ apply_wallpaper() {
 
   opt="$(pick_picture_option "$dest")"
   set_wallpaper "$dest" "$opt"
+  printf '%s\n' "$dest" >"$STATE_DIR/current"
   _write_meta "$dest"
 
   find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -type f -mtime +14 -delete
@@ -841,7 +843,14 @@ cmd_status() {
   fi
   echo
   local latest meta_val
-  latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+  latest=""
+  if [ -f "$STATE_DIR/current" ]; then
+    latest="$(<"$STATE_DIR/current")"
+    [ -f "$latest" ] || latest=""
+  fi
+  if [ -z "$latest" ]; then
+    latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+  fi
   [ -n "$latest" ] && echo "Current image:  $latest"
   if [ -n "$latest" ]; then
     meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
