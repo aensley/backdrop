@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
-SYSTEMD_USER_DIR="$BASE_CONFIG_DIR/systemd/user"
 REPO="aensley/backdrop-cli"
 
 # Resolve the script's directory only when running from a real file, not piped stdin.
@@ -32,28 +30,16 @@ else
   echo "Installing backdrop..."
 fi
 
-fetch() {
-  local name dest="$2"
-  name="$(basename "$1")"
-  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$name" ]; then
-    cp "$SCRIPT_DIR/$name" "$dest"
-  else
-    curl -fsSL "$REPO_RAW/$name" -o "$dest"
-  fi
-}
-
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-fetch backdrop.sh "$tmp/backdrop"
-fetch backdrop.service "$tmp/backdrop.service"
-fetch backdrop.timer "$tmp/backdrop.timer"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/backdrop.sh" ]; then
+  cp "$SCRIPT_DIR/backdrop.sh" "$tmp/backdrop"
+else
+  curl -fsSL "$REPO_RAW/backdrop.sh" -o "$tmp/backdrop"
+fi
 
 sudo install -m 755 "$tmp/backdrop" /usr/local/bin/backdrop
-
-mkdir -p "$SYSTEMD_USER_DIR"
-install -m 644 "$tmp/backdrop.service" "$SYSTEMD_USER_DIR/backdrop.service"
-install -m 644 "$tmp/backdrop.timer" "$SYSTEMD_USER_DIR/backdrop.timer"
 
 backdrop enable
 

@@ -55,10 +55,19 @@ git clone https://github.com/aensley/backdrop-cli.git \
 
 The installer:
 
-1. Downloads (or uses local) `backdrop.sh`, `backdrop.service`, and `backdrop.timer`
+1. Downloads (or uses local) `backdrop.sh`
 2. Copies `backdrop` to `/usr/local/bin/`
-3. Installs `backdrop.service` and `backdrop.timer` to `~/.config/systemd/user/`
-4. Runs `backdrop enable` to start the daily timer
+3. Runs `backdrop enable`, which downloads and installs the systemd unit files and starts the daily timer
+
+### Additional users
+
+With `backdrop` already installed, additional users can enable it for their login with:
+
+```bash
+backdrop enable
+```
+
+This will download the matching systemd unit files from the matching GitHub release and install them into their own `~/.config/systemd/user/` directory.
 
 ## Usage
 
@@ -66,19 +75,19 @@ The installer:
 backdrop <command>
 ```
 
-| Command                         | Description                                                           |
-| ------------------------------- | --------------------------------------------------------------------- |
-| `status`                        | Show version, active source, last image, and image metadata (default) |
-| `update [--force]`              | Refresh wallpaper from the active source                              |
-| `set <source...> [--force]`     | Switch active source(s) and refresh now; use `all` for all sources    |
-| `set-time <HH:MM>`              | Set the daily run time (24-hour); restarts timer if active            |
-| `set-rotate-interval <minutes>` | Set rotation interval in minutes; 0 to disable                        |
-| `random [--force]`              | Refresh from a randomly chosen source (does not change active)        |
-| `enable`                        | Enable the systemd --user timer                                       |
-| `disable`                       | Disable the systemd --user timer                                      |
-| `upgrade`                       | Check for and install the latest version from GitHub                  |
-| `uninstall`                     | Remove backdrop from this system                                      |
-| `help`                          | Show help                                                             |
+| Command                         | Description                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `status`                        | Show version, active source, last image, and image metadata (default)        |
+| `update [--force]`              | Refresh wallpaper from the active source                                     |
+| `set <source...> [--force]`     | Switch active source(s) and refresh now; use `all` for all sources           |
+| `set-time <HH:MM>`              | Set the daily run time (24-hour); restarts timer if active                   |
+| `set-rotate-interval <minutes>` | Set rotation interval in minutes; 0 to disable                               |
+| `random [--force]`              | Refresh from a randomly chosen source (does not change active)               |
+| `enable`                        | Enable the systemd --user timer; downloads unit files from GitHub if missing |
+| `disable`                       | Disable the systemd --user timer                                             |
+| `upgrade`                       | Check for and install the latest version from GitHub                         |
+| `uninstall`                     | Remove backdrop from this system                                             |
+| `help`                          | Show help                                                                    |
 
 ## Sources
 
