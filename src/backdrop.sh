@@ -275,7 +275,7 @@ resolve_natgeo() {
   page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.nationalgeographic.com/photo-of-the-day/")" || return 1
   url="$(grep -oiE 'property="og:image" content="https://i\.natgeofe\.com/[^"]+"' <<<"$page" |
     sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
-  og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/;s/ \|.*//' | head -1)" || true
   og_desc="$(grep -oiE 'property="og:description" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
   og_url="$(grep -oiE 'property="og:url" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
   [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$og_title"
@@ -711,11 +711,11 @@ backdrop v${VERSION}
 Usage: backdrop <command>
 
 Commands:
-  update [--force]                Refresh wallpaper from the active source (default command)
+  status                          Show the active source and last image (default command)
+  update [--force]                Refresh wallpaper from the active source
   set <source...> [--force]       Switch active source(s) and refresh now; use 'all' for all sources
   set-time <HH:MM>                Set the daily run time (24-hour); restarts timer if active
   set-rotate-interval <minutes>   Set rotation interval in minutes; 0 to disable rotation
-  status                          Show the active source and last image
   random [--force]                Refresh from a randomly chosen source (does not change active source)
   enable                          Enable the systemd --user timer (backdrop.timer)
   disable                         Disable the systemd --user timer
@@ -738,7 +738,7 @@ EOF
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   FORCE=false
-  cmd="${1:-update}"
+  cmd="${1:-status}"
   [ "$cmd" != "uninstall" ] && load_config
   case "$cmd" in
     update | refresh)
@@ -787,12 +787,16 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       apply_wallpaper "$(get_active_source)"
       ;;
     status)
+      echo -e "backdrop v${VERSION}"
+      echo
       active_srcs="$(get_sources)"
       active_src="$(get_active_source)"
       if [[ "$active_srcs" == *" "* ]]; then
-        echo "Active sources:    $active_srcs"
-        echo "Current source:    $active_src"
-        [ "$ROTATE_INTERVAL" -gt 0 ] && echo "Rotate interval:   ${ROTATE_INTERVAL} min"
+        labeled=""
+        for s in $active_srcs; do
+          [ "$s" = "$active_src" ] && labeled+="[$s] " || labeled+="$s "
+        done
+        echo "Active sources:    ${labeled% }"
       else
         echo "Active source:     $active_src"
       fi
@@ -805,15 +809,19 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       else
         echo "Timer:             disabled"
       fi
-      latest="$(find "$STATE_DIR" -maxdepth 1 -name '*.jpg' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
-      [ -n "$latest" ] && echo "Last image:        $latest"
+      echo
+      latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+      [ -n "$latest" ] && echo "Current image:     $latest"
       if [ -n "$latest" ]; then
         meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
-        [ -n "$meta_val" ] && echo "Image title:       $meta_val"
+        [ -n "$meta_val" ] && echo "Title:             $meta_val"
         meta_val="$(_meta_get "${latest%.jpg}.meta" desc)"
-        [ -n "$meta_val" ] && echo "Description:       $meta_val"
+        if [ -n "$meta_val" ]; then
+          [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
+          echo "Description:       $meta_val"
+        fi
         meta_val="$(_meta_get "${latest%.jpg}.meta" url)"
-        [ -n "$meta_val" ] && echo "Image URL:         $meta_val"
+        [ -n "$meta_val" ] && echo "URL:               $meta_val"
       fi
       de="$(detect_de)"
       method=""
@@ -852,6 +860,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       else
         method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
       fi
+      echo
+      echo "Desktop env:       $de"
       echo "Display method:    ${method:-unknown}"
       echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
       echo "Screen aspect:     $(screen_ar) (config fallback: $SCREEN_ASPECT_RATIO)"
