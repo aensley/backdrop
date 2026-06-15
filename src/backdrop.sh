@@ -190,8 +190,8 @@ print(desc)
 ' <<<"$page" 2>/dev/null)" || true
   title="$(sed -n '1p' <<<"$_out")"
   desc="$(sed -n '2p' <<<"$_out")"
-  [ -n "$title" ] && printf 'META_TITLE:%s\n' "$title"
-  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$desc"
+  [ -n "$title" ] && printf 'META_TITLE:%s\n' "$(_strip_html "$title")"
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$desc")"
   printf 'META_URL:%s\n' "https://apod.nasa.gov/apod/astropix.html"
   [ -n "$rel" ] && printf '%s\n' "https://apod.nasa.gov/apod/$rel"
   return 0
@@ -233,7 +233,7 @@ text = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", text)
 text = re.sub(r"\{\{[^}]*\}\}", "", text)
 print(" ".join(text.split())[:300])
 ' <<<"$resp" 2>/dev/null)" || true
-  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$desc"
+  [ -n "$desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$desc")"
   printf 'META_URL:%s\n' "https://commons.wikimedia.org/wiki/File:$(printf '%s' "${file#File:}" | tr ' ' '_')"
   enc="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$file")"
   resp="$(curl -fsSL --max-time 30 -A "$USER_AGENT" \
@@ -274,8 +274,8 @@ resolve_natgeo() {
   og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/;s/ \|.*//' | head -1)" || true
   og_desc="$(grep -oiE 'property="og:description" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
   og_url="$(grep -oiE 'property="og:url" content="[^"]+"' <<<"$page" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
-  [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$og_title"
-  [ -n "$og_desc" ] && printf 'META_DESC:%s\n' "$og_desc"
+  [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$(_strip_html "$og_title")"
+  [ -n "$og_desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$og_desc")"
   printf 'META_URL:%s\n' "${og_url:-https://www.nationalgeographic.com/photo-of-the-day/}"
   [ -n "$url" ] || return 0
   printf '%s\n' "${url}?w=5120" # max CDN resolution (~4600px wide)
@@ -578,12 +578,7 @@ is_valid() {
 _strip_html() {
   local s="$1"
   s="$(printf '%s' "$s" | sed 's/<[^>]*>//g')"
-  s="${s//&amp;/\&}"
-  s="${s//&lt;/<}"
-  s="${s//&gt;/>}"
-  s="${s//&quot;/\"}"
-  s="${s//&#39;/\'}"
-  s="${s//&#x27;/\'}"
+  s="$(python3 -c 'import html,sys; print(html.unescape(sys.stdin.read()), end="")' <<<"$s")"
   printf '%s' "$s" | tr -s ' \t\n' ' ' | sed 's/^ //;s/ $//'
 }
 

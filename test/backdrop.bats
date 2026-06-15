@@ -728,6 +728,11 @@ STUB
   [ "$output" = "& < > \" '" ]
 }
 
+@test "_strip_html: decodes numeric entities with leading zeros" {
+  run _strip_html "San Francisco&#039;s Streets"
+  [ "$output" = "San Francisco's Streets" ]
+}
+
 @test "_strip_html: collapses whitespace" {
   run _strip_html "  foo   bar  "
   [ "$output" = "foo bar" ]
