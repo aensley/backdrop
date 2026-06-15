@@ -24,8 +24,7 @@ STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/backdrop"
 BASE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONFIG_DIR="$BASE_CONFIG_DIR/backdrop"
 CONFIG_FILE="$CONFIG_DIR/config"
-LEGACY_SOURCE_FILE="$CONFIG_DIR/source" # pre-config-file location of the active source
-VALID_SOURCES=(iotd apod bing wmc eo earth natgeo)
+VALID_SOURCES=(apod bing earth iotd natgeo eo wmc)
 
 # Metadata for the most recently resolved image; set by apply_wallpaper after
 # parsing META_* lines from resolver output.
@@ -92,13 +91,10 @@ cfg_set() {
   fi
 }
 
-# Create the config file on first run, migrating the active source from the
-# legacy single-line "source" file if present.
+# Create the config file on first run with built-in defaults.
 ensure_config() {
   [ -f "$CONFIG_FILE" ] && return 0
   local seed="$SOURCE"
-  [ -r "$LEGACY_SOURCE_FILE" ] && seed="$(tr -d '[:space:]' <"$LEGACY_SOURCE_FILE")"
-  [ -n "$seed" ] || seed="$SOURCE"
   cat >"$CONFIG_FILE" <<EOF
 # backdrop configuration  (key = value; lines starting with # are ignored)
 
@@ -548,16 +544,10 @@ get_sources() {
     printf '%s' "$s"
     return
   fi
-  if [ -r "$LEGACY_SOURCE_FILE" ]; then tr -d '[:space:]' <"$LEGACY_SOURCE_FILE"; else printf '%s' "$SOURCE"; fi
+  printf '%s' "$SOURCE"
 }
 
 # Returns the first configured source name (single-source accessor).
-get_source() {
-  local srcs
-  srcs="$(get_sources)"
-  printf '%s' "${srcs%% *}"
-}
-
 # Returns the 0-based index into a source list for a given unix timestamp (seconds).
 _rotation_index() {
   local now_sec="$1" interval="$2" count="$3"
@@ -588,7 +578,7 @@ is_valid() {
 _strip_html() {
   local s="$1"
   s="$(printf '%s' "$s" | sed 's/<[^>]*>//g')"
-  s="${s//&amp;/&}"
+  s="${s//&amp;/\&}"
   s="${s//&lt;/<}"
   s="${s//&gt;/>}"
   s="${s//&quot;/\"}"
@@ -677,7 +667,7 @@ apply_wallpaper() {
   echo "backdrop: set from $src [$(image_dims "$dest" | tr ' ' 'x'), $opt] -> $dest"
 }
 
-upgrade() {
+cmd_upgrade() {
   local api_response latest_tag latest_version raw_url tmp
   echo "backdrop: checking for updates (current: v${VERSION})..."
   api_response="$(curl -fsSL --max-time 15 -A "$USER_AGENT" \
@@ -704,7 +694,220 @@ upgrade() {
   echo "backdrop: upgraded to v${latest_version}."
 }
 
-usage() {
+cmd_update() {
+  [ "${1:-}" = "--force" ] && FORCE=true
+  apply_wallpaper "$(get_active_source)"
+}
+
+cmd_random() {
+  [ "${1:-}" = "--force" ] && FORCE=true
+  apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
+}
+
+cmd_enable() {
+  apply_timer_config
+  systemctl --user enable --now backdrop.timer
+  if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+    echo "backdrop: timer enabled (rotating every ${ROTATE_INTERVAL} min)."
+  else
+    echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
+  fi
+}
+
+cmd_disable() {
+  systemctl --user disable --now backdrop.timer
+  echo "backdrop: daily timer disabled."
+}
+
+cmd_set_time() {
+  local t="${1:-}"
+  [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
+  cfg_set timer_time "$t"
+  apply_timer_time "$t"
+  if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+    echo "backdrop: timer time saved to $t (rotation is active; daily time takes effect when rotation is disabled)."
+  elif systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+    systemctl --user restart backdrop.timer
+    echo "backdrop: timer time set to $t and timer restarted."
+  else
+    echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
+  fi
+}
+
+cmd_set_rotate_interval() {
+  local t="${1:-}"
+  [[ "$t" =~ ^[0-9]+$ ]] || die "set-rotate-interval: expected number of minutes (0 to disable), e.g. 60"
+  cfg_set rotate_interval "$t"
+  ROTATE_INTERVAL="$t"
+  apply_timer_config
+  if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+    systemctl --user restart backdrop.timer
+    if [ "$t" -gt 0 ]; then
+      echo "backdrop: rotate interval set to ${t} min and timer restarted."
+    else
+      echo "backdrop: rotation disabled, timer reset to daily at ${TIMER_TIME}."
+    fi
+  else
+    if [ "$t" -gt 0 ]; then
+      echo "backdrop: rotate interval set to ${t} min (run 'backdrop enable' to start the timer)."
+    else
+      echo "backdrop: rotation disabled (run 'backdrop enable' to start the daily timer)."
+    fi
+  fi
+}
+
+cmd_uninstall() {
+  local purge=false
+  [ "${1:-}" = "--purge" ] && purge=true
+  systemctl --user disable --now backdrop.timer 2>/dev/null || true
+  systemctl --user daemon-reload
+  local systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
+  rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"
+  rm -rf "$systemd_user_dir/backdrop.timer.d"
+  sudo rm -f /usr/local/bin/backdrop
+  if $purge; then
+    rm -rf "$CONFIG_DIR" "$STATE_DIR"
+    echo "backdrop: uninstalled. Config and cached wallpapers removed."
+  else
+    echo "backdrop: uninstalled."
+    echo "Note: config and cached wallpapers were not removed. Run 'backdrop uninstall --purge' to delete them."
+  fi
+}
+
+cmd_set() {
+  local srcs=() arg s timer_changed=false
+  for arg in "$@"; do
+    [ "$arg" = "--force" ] && {
+      FORCE=true
+      continue
+    }
+    srcs+=("$arg")
+  done
+  [ "${#srcs[@]}" -eq 0 ] && die "set: choose one or more sources (${VALID_SOURCES[*]}) or 'all'"
+  if [ "${#srcs[@]}" -eq 1 ] && [ "${srcs[0]}" = "all" ]; then
+    srcs=("${VALID_SOURCES[@]}")
+  fi
+  for s in "${srcs[@]}"; do
+    is_valid "$s" || die "set: unknown source '$s' (valid: ${VALID_SOURCES[*]})"
+  done
+  cfg_set source "${srcs[*]}"
+  if [ "${#srcs[@]}" -gt 1 ]; then
+    if [ "$ROTATE_INTERVAL" -le 0 ]; then
+      ROTATE_INTERVAL=30
+      cfg_set rotate_interval 30
+      timer_changed=true
+    fi
+    echo "backdrop: active sources: ${srcs[*]} (rotating every ${ROTATE_INTERVAL} min)"
+  else
+    if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+      ROTATE_INTERVAL=0
+      cfg_set rotate_interval 0
+      timer_changed=true
+    fi
+    echo "backdrop: active source is now '${srcs[0]}'"
+  fi
+  if $timer_changed; then
+    apply_timer_config
+    if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
+      systemctl --user restart backdrop.timer
+    fi
+  fi
+  apply_wallpaper "$(get_active_source)"
+}
+
+cmd_status() {
+  echo -e "backdrop v${VERSION}"
+  echo
+  local active_srcs active_src labeled s de method
+  active_srcs="$(get_sources)"
+  active_src="$(get_active_source)"
+  if [[ "$active_srcs" == *" "* ]]; then
+    labeled=""
+    for s in $active_srcs; do
+      [ "$s" = "$active_src" ] && labeled+="[$s] " || labeled+="$s "
+    done
+    echo "Active sources: ${labeled% }"
+  else
+    echo "Active source:  $active_src"
+  fi
+  if systemctl --user is-enabled --quiet backdrop.timer 2>/dev/null; then
+    if [ "$ROTATE_INTERVAL" -gt 0 ]; then
+      echo "Timer:          enabled (rotating every ${ROTATE_INTERVAL} min)"
+    else
+      echo "Timer:          enabled (runs at $TIMER_TIME)"
+    fi
+  else
+    echo "Timer:          disabled"
+  fi
+  echo
+  local latest meta_val
+  latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+  [ -n "$latest" ] && echo "Current image:  $latest"
+  if [ -n "$latest" ]; then
+    meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
+    if [ -n "$meta_val" ]; then
+      [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
+      echo "Title:          $meta_val"
+    fi
+    meta_val="$(_meta_get "${latest%.jpg}.meta" desc)"
+    if [ -n "$meta_val" ]; then
+      [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
+      echo "Description:    $meta_val"
+    fi
+    meta_val="$(_meta_get "${latest%.jpg}.meta" url)"
+    [ -n "$meta_val" ] && echo "URL:            $meta_val"
+  fi
+  de="$(detect_de)"
+  method=""
+  if [ "$de" = "kde" ]; then
+    local qdbus_cmd fm
+    qdbus_cmd=""
+    command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
+    { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
+    if [ -n "$qdbus_cmd" ]; then
+      fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
+        org.kde.PlasmaShell.evaluateScript \
+        "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
+        2>/dev/null | tr -d '[:space:]')"
+      case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
+    fi
+  elif [ "$de" = "xfce" ]; then
+    local prop style
+    prop="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' | head -1)"
+    if [ -n "$prop" ]; then
+      style="$(xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" 2>/dev/null)"
+      case "$style" in 5) method="zoom" ;; 4) method="scaled" ;; *) method="${style:+image-style=$style}" ;; esac
+    fi
+  elif [ "$de" = "mate" ]; then
+    method="$(gsettings get org.mate.background picture-options 2>/dev/null | tr -d "'")"
+  elif [ "$de" = "lxqt" ]; then
+    local lxqt_cfg mode
+    lxqt_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/pcmanfm-qt/lxqt/settings.conf"
+    mode="$(sed -n 's/^WallpaperMode=//p' "$lxqt_cfg" 2>/dev/null)"
+    case "$mode" in zoom) method="zoom" ;; fit) method="scaled" ;; *) method="${mode:+wallpaper-mode=$mode}" ;; esac
+  elif [ "$de" = "cosmic" ]; then
+    local cfg_dir
+    cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic/com.system76.CosmicBackground/v1"
+    if [ -f "$cfg_dir/all" ]; then
+      if grep -q 'scaling_mode:[[:space:]]*Zoom' "$cfg_dir/all" 2>/dev/null; then
+        method="zoom"
+      elif grep -q 'scaling_mode:[[:space:]]*Fit' "$cfg_dir/all" 2>/dev/null; then
+        method="scaled"
+      fi
+    fi
+  else
+    method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
+  fi
+  echo
+  echo "Display method: $de, ${method:-unknown}"
+  echo "Aspect ratio:   $(screen_ar), $ZOOM_MIN_COVERAGE min coverage"
+  echo "Config file:    $CONFIG_FILE"
+  echo
+  echo "Use 'backdrop help' for usage information."
+  echo
+}
+
+cmd_help() {
   cat <<EOF
 backdrop v${VERSION}
 
@@ -742,209 +945,37 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   [ "$cmd" != "uninstall" ] && load_config
   case "$cmd" in
     update | refresh)
-      [ "${2:-}" = "--force" ] && FORCE=true
-      apply_wallpaper "$(get_active_source)"
+      cmd_update "${2:-}"
       ;;
     set | use)
-      srcs=()
-      for arg in "${@:2}"; do
-        [ "$arg" = "--force" ] && {
-          FORCE=true
-          continue
-        }
-        srcs+=("$arg")
-      done
-      [ "${#srcs[@]}" -eq 0 ] && die "set: choose one or more sources (${VALID_SOURCES[*]}) or 'all'"
-      if [ "${#srcs[@]}" -eq 1 ] && [ "${srcs[0]}" = "all" ]; then
-        srcs=("${VALID_SOURCES[@]}")
-      fi
-      for s in "${srcs[@]}"; do
-        is_valid "$s" || die "set: unknown source '$s' (valid: ${VALID_SOURCES[*]})"
-      done
-      cfg_set source "${srcs[*]}"
-      timer_changed=false
-      if [ "${#srcs[@]}" -gt 1 ]; then
-        if [ "$ROTATE_INTERVAL" -le 0 ]; then
-          ROTATE_INTERVAL=30
-          cfg_set rotate_interval 30
-          timer_changed=true
-        fi
-        echo "backdrop: active sources: ${srcs[*]} (rotating every ${ROTATE_INTERVAL} min)"
-      else
-        if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-          ROTATE_INTERVAL=0
-          cfg_set rotate_interval 0
-          timer_changed=true
-        fi
-        echo "backdrop: active source is now '${srcs[0]}'"
-      fi
-      if $timer_changed; then
-        apply_timer_config
-        if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
-          systemctl --user restart backdrop.timer
-        fi
-      fi
-      apply_wallpaper "$(get_active_source)"
+      cmd_set "${@:2}"
       ;;
     status)
-      echo -e "backdrop v${VERSION}"
-      echo
-      active_srcs="$(get_sources)"
-      active_src="$(get_active_source)"
-      if [[ "$active_srcs" == *" "* ]]; then
-        labeled=""
-        for s in $active_srcs; do
-          [ "$s" = "$active_src" ] && labeled+="[$s] " || labeled+="$s "
-        done
-        echo "Active sources: ${labeled% }"
-      else
-        echo "Active source:  $active_src"
-      fi
-      if systemctl --user is-enabled --quiet backdrop.timer 2>/dev/null; then
-        if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-          echo "Timer:          enabled (rotating every ${ROTATE_INTERVAL} min)"
-        else
-          echo "Timer:          enabled (runs at $TIMER_TIME)"
-        fi
-      else
-        echo "Timer:          disabled"
-      fi
-      echo
-      latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
-      [ -n "$latest" ] && echo "Current image:  $latest"
-      if [ -n "$latest" ]; then
-        meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
-        if [ -n "$meta_val" ]; then
-          [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
-          echo "Title:          $meta_val"
-        fi
-        meta_val="$(_meta_get "${latest%.jpg}.meta" desc)"
-        if [ -n "$meta_val" ]; then
-          [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
-          echo "Description:    $meta_val"
-        fi
-        meta_val="$(_meta_get "${latest%.jpg}.meta" url)"
-        [ -n "$meta_val" ] && echo "URL:            $meta_val"
-      fi
-      de="$(detect_de)"
-      method=""
-      if [ "$de" = "kde" ]; then
-        qdbus_cmd=""
-        command -v qdbus6 &>/dev/null && qdbus_cmd="qdbus6"
-        { [ -z "$qdbus_cmd" ] && command -v qdbus &>/dev/null; } && qdbus_cmd="qdbus"
-        if [ -n "$qdbus_cmd" ]; then
-          fm="$("$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
-            org.kde.PlasmaShell.evaluateScript \
-            "var d=desktops()[0];d.currentConfigGroup=['Wallpaper','org.kde.image','General'];print(d.readConfig('FillMode'));" \
-            2>/dev/null | tr -d '[:space:]')"
-          case "$fm" in 2) method="zoom" ;; 1) method="scaled" ;; *) method="${fm:+fillmode=$fm}" ;; esac
-        fi
-      elif [ "$de" = "xfce" ]; then
-        prop="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' | head -1)"
-        if [ -n "$prop" ]; then
-          style="$(xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" 2>/dev/null)"
-          case "$style" in 5) method="zoom" ;; 4) method="scaled" ;; *) method="${style:+image-style=$style}" ;; esac
-        fi
-      elif [ "$de" = "mate" ]; then
-        method="$(gsettings get org.mate.background picture-options 2>/dev/null | tr -d "'")"
-      elif [ "$de" = "lxqt" ]; then
-        lxqt_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/pcmanfm-qt/lxqt/settings.conf"
-        mode="$(sed -n 's/^WallpaperMode=//p' "$lxqt_cfg" 2>/dev/null)"
-        case "$mode" in zoom) method="zoom" ;; fit) method="scaled" ;; *) method="${mode:+wallpaper-mode=$mode}" ;; esac
-      elif [ "$de" = "cosmic" ]; then
-        cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic/com.system76.CosmicBackground/v1"
-        if [ -f "$cfg_dir/all" ]; then
-          if grep -q 'scaling_mode:[[:space:]]*Zoom' "$cfg_dir/all" 2>/dev/null; then
-            method="zoom"
-          elif grep -q 'scaling_mode:[[:space:]]*Fit' "$cfg_dir/all" 2>/dev/null; then
-            method="scaled"
-          fi
-        fi
-      else
-        method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
-      fi
-      echo
-      echo "Display method: $de, ${method:-unknown}"
-      echo "Aspect ratio:   $(screen_ar), $ZOOM_MIN_COVERAGE min coverage"
-      echo "Config file:    $CONFIG_FILE"
-      echo
-      echo "Use 'backdrop help' for usage information."
-      echo
+      cmd_status
       ;;
     random)
-      [ "${2:-}" = "--force" ] && FORCE=true
-      apply_wallpaper "${VALID_SOURCES[$((RANDOM % ${#VALID_SOURCES[@]}))]}"
+      cmd_random "${2:-}"
       ;;
     enable)
-      apply_timer_config
-      systemctl --user enable --now backdrop.timer
-      if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-        echo "backdrop: timer enabled (rotating every ${ROTATE_INTERVAL} min)."
-      else
-        echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
-      fi
+      cmd_enable
       ;;
     disable)
-      systemctl --user disable --now backdrop.timer
-      echo "backdrop: daily timer disabled."
+      cmd_disable
       ;;
     set-time)
-      t="${2:-}"
-      [[ "$t" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || die "set-time: expected HH:MM (24-hour), e.g. 08:00"
-      cfg_set timer_time "$t"
-      apply_timer_time "$t"
-      if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-        echo "backdrop: timer time saved to $t (rotation is active; daily time takes effect when rotation is disabled)."
-      elif systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
-        systemctl --user restart backdrop.timer
-        echo "backdrop: timer time set to $t and timer restarted."
-      else
-        echo "backdrop: timer time set to $t (run 'backdrop enable' to start the timer)."
-      fi
+      cmd_set_time "${2:-}"
       ;;
     set-rotate-interval)
-      t="${2:-}"
-      [[ "$t" =~ ^[0-9]+$ ]] || die "set-rotate-interval: expected number of minutes (0 to disable), e.g. 60"
-      cfg_set rotate_interval "$t"
-      ROTATE_INTERVAL="$t"
-      apply_timer_config
-      if systemctl --user is-active --quiet backdrop.timer 2>/dev/null; then
-        systemctl --user restart backdrop.timer
-        if [ "$t" -gt 0 ]; then
-          echo "backdrop: rotate interval set to ${t} min and timer restarted."
-        else
-          echo "backdrop: rotation disabled, timer reset to daily at ${TIMER_TIME}."
-        fi
-      else
-        if [ "$t" -gt 0 ]; then
-          echo "backdrop: rotate interval set to ${t} min (run 'backdrop enable' to start the timer)."
-        else
-          echo "backdrop: rotation disabled (run 'backdrop enable' to start the daily timer)."
-        fi
-      fi
+      cmd_set_rotate_interval "${2:-}"
       ;;
     upgrade)
-      upgrade
+      cmd_upgrade
       ;;
     uninstall)
-      purge=false
-      [ "${2:-}" = "--purge" ] && purge=true
-      systemctl --user disable --now backdrop.timer 2>/dev/null || true
-      systemctl --user daemon-reload
-      systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
-      rm -f "$systemd_user_dir/backdrop.timer" "$systemd_user_dir/backdrop.service"
-      rm -rf "$systemd_user_dir/backdrop.timer.d"
-      sudo rm -f /usr/local/bin/backdrop
-      if $purge; then
-        rm -rf "$CONFIG_DIR" "$STATE_DIR"
-        echo "backdrop: uninstalled. Config and cached wallpapers removed."
-      else
-        echo "backdrop: uninstalled."
-        echo "Note: config and cached wallpapers were not removed. Run 'backdrop uninstall --purge' to delete them."
-      fi
+      cmd_uninstall "${2:-}"
       ;;
     -h | --help | help)
-      usage
+      cmd_help
       ;;
     *)
       die "unknown command '$cmd' (try: backdrop help)"

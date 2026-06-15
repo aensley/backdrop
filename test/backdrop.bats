@@ -279,6 +279,35 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# load_config
+# ---------------------------------------------------------------------------
+
+@test "load_config: reads config values into globals" {
+  mkdir -p "$CONFIG_DIR"
+  cat >"$CONFIG_FILE" <<'EOF'
+screen_aspect_ratio = 2.3333
+zoom_min_coverage = 0.75
+timer_time = 10:30
+rotate_interval = 15
+user_agent = test-agent/1.0
+EOF
+  load_config
+  [ "$SCREEN_ASPECT_RATIO" = "2.3333" ]
+  [ "$ZOOM_MIN_COVERAGE" = "0.75" ]
+  [ "$TIMER_TIME" = "10:30" ]
+  [ "$ROTATE_INTERVAL" = "15" ]
+  [ "$USER_AGENT" = "test-agent/1.0" ]
+}
+
+@test "load_config: leaves globals at defaults when config is missing" {
+  load_config
+  [ "$SCREEN_ASPECT_RATIO" = "1.7778" ]
+  [ "$ZOOM_MIN_COVERAGE" = "0.55" ]
+  [ "$TIMER_TIME" = "08:00" ]
+  [ "$ROTATE_INTERVAL" = "0" ]
+}
+
+# ---------------------------------------------------------------------------
 # image_dims
 # ---------------------------------------------------------------------------
 
@@ -295,6 +324,16 @@ teardown() {
 @test "image_dims: returns empty for a non-image file" {
   run image_dims "/etc/hostname"
   [ "$output" = "" ]
+}
+
+# ---------------------------------------------------------------------------
+# screen_ar
+# ---------------------------------------------------------------------------
+
+@test "screen_ar: returns a numeric aspect ratio" {
+  run screen_ar
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^[0-9]+\.[0-9]+$ ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -405,6 +444,293 @@ STUB
   [ "$status" -eq 0 ]
   [ "$(grep -v '^META_' <<<"$output")" = "" ]
   rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_natgeo (additional)
+# ---------------------------------------------------------------------------
+
+@test "resolve_natgeo: strips site suffix from og:title" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '<meta property="og:image" content="https://i.natgeofe.com/n/abc123/photo.jpg"/>'
+echo '<meta property="og:title" content="Forever in Motion | National Geographic"/>'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_natgeo
+  [ "$status" -eq 0 ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Forever in Motion" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_iotd
+# ---------------------------------------------------------------------------
+
+@test "resolve_iotd: returns URL and metadata from RSS feed" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'RSS'
+<rss><channel>
+<item>
+  <title><![CDATA[Test IOTD Image]]></title>
+  <description>A test NASA image.</description>
+  <link>https://www.nasa.gov/image-of-the-day/test/</link>
+  <enclosure url="https://www.nasa.gov/wp-content/uploads/2025/01/test.jpg" type="image/jpeg"/>
+</item>
+</channel></rss>
+RSS
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_iotd
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "https://www.nasa.gov/wp-content/uploads/2025/01/test.jpg" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Test IOTD Image" ]
+  [ "$(grep '^META_URL:' <<<"$output")" = "META_URL:https://www.nasa.gov/image-of-the-day/test/" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_iotd: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_iotd
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_iotd: returns empty image output when no enclosure URL found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'RSS'
+<rss><channel>
+<item>
+  <title><![CDATA[No Image Today]]></title>
+  <link>https://www.nasa.gov/image-of-the-day/</link>
+</item>
+</channel></rss>
+RSS
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_iotd
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_apod
+# ---------------------------------------------------------------------------
+
+@test "resolve_apod: returns URL and metadata from HTML page" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'HTML'
+<html><body>
+<center><b>Starry Night</b><br</center>
+<a href="image/2025/starry_night.jpg">image</a>
+<b>Explanation:</b> A wonderful view of stars.
+</body></html>
+HTML
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_apod
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "https://apod.nasa.gov/apod/image/2025/starry_night.jpg" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Starry Night" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_apod: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_apod
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_apod: returns empty image output when no image link found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\necho "<html>No image today.</html>"\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_apod
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_bing
+# ---------------------------------------------------------------------------
+
+@test "resolve_bing: returns 4K and fallback URLs with metadata" {
+  local stubdir url_lines
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '{"images":[{"urlbase":"/th/id/OHR.TestImage","url":"/th/id/OHR.TestImage_1920x1080.jpg","title":"Test Bing Image","copyright":"Test copyright 2025"}]}'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_bing
+  [ "$status" -eq 0 ]
+  url_lines="$(grep -v '^META_' <<<"$output")"
+  [ "$(sed -n '1p' <<<"$url_lines")" = "https://www.bing.com/th/id/OHR.TestImage_UHD.jpg" ]
+  [ "$(sed -n '2p' <<<"$url_lines")" = "https://www.bing.com/th/id/OHR.TestImage_1920x1080.jpg" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Test Bing Image" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_bing: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_bing
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_eo
+# ---------------------------------------------------------------------------
+
+@test "resolve_eo: returns 4K and base URLs with metadata from RSS feed" {
+  local stubdir url_lines
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'RSS'
+<rss><channel>
+<item>
+  <title><![CDATA[Earth at Night]]></title>
+  <description><![CDATA[A stunning view.]]></description>
+  <link>https://earthobservatory.nasa.gov/images/12345/earth-at-night</link>
+  <p>https://assets.science.nasa.gov/dynamicimage/eo/2025/01/photo.jpg</p>
+</item>
+</channel></rss>
+RSS
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_eo
+  [ "$status" -eq 0 ]
+  url_lines="$(grep -v '^META_' <<<"$output")"
+  [ "$(sed -n '1p' <<<"$url_lines")" = "https://assets.science.nasa.gov/dynamicimage/eo/2025/01/photo.jpg?w=3840" ]
+  [ "$(sed -n '2p' <<<"$url_lines")" = "https://assets.science.nasa.gov/dynamicimage/eo/2025/01/photo.jpg" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Earth at Night" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_eo: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_eo
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_eo: returns empty image output when no asset URL found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'RSS'
+<rss><channel>
+<item>
+  <title><![CDATA[No Image]]></title>
+  <link>https://earthobservatory.nasa.gov/images/12345/no-image</link>
+</item>
+</channel></rss>
+RSS
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_eo
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_wmc
+# ---------------------------------------------------------------------------
+
+@test "resolve_wmc: returns thumbnail and base URLs with metadata" {
+  local stubdir url_lines
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+if [[ "$*" == *"imageinfo"* ]]; then
+  echo '{"query":{"pages":{"-1":{"imageinfo":[{"thumburl":"https://upload.wikimedia.org/thumb/photo.jpg","url":"https://upload.wikimedia.org/photo.jpg"}]}}}}'
+elif [[ "$*" == *"(en)"* ]]; then
+  echo '{"expandtemplates":{"wikitext":"A beautiful photograph of the day."}}'
+else
+  echo '{"expandtemplates":{"wikitext":"File:Test Photo.jpg"}}'
+fi
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_wmc
+  [ "$status" -eq 0 ]
+  url_lines="$(grep -v '^META_' <<<"$output")"
+  [ "$(sed -n '1p' <<<"$url_lines")" = "https://upload.wikimedia.org/thumb/photo.jpg" ]
+  [ "$(sed -n '2p' <<<"$url_lines")" = "https://upload.wikimedia.org/photo.jpg" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Test Photo" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_wmc: returns exit code 1 on curl failure" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stubdir/curl"
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_wmc
+  [ "$status" -eq 1 ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_wmc: returns empty image output when no file found" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '{"expandtemplates":{"wikitext":""}}'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_wmc
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# _strip_html
+# ---------------------------------------------------------------------------
+
+@test "_strip_html: removes HTML tags" {
+  run _strip_html "<b>Hello</b> <i>World</i>"
+  [ "$output" = "Hello World" ]
+}
+
+@test "_strip_html: decodes common HTML entities" {
+  run _strip_html "&amp; &lt; &gt; &quot; &#39;"
+  [ "$output" = "& < > \" '" ]
+}
+
+@test "_strip_html: collapses whitespace" {
+  run _strip_html "  foo   bar  "
+  [ "$output" = "foo bar" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -523,7 +849,7 @@ STUB
   mkdir -p "$CONFIG_DIR"
   echo "source = all" >"$CONFIG_FILE"
   run get_sources
-  [ "$output" = "iotd apod bing wmc eo earth natgeo" ]
+  [ "$output" = "apod bing earth iotd natgeo eo wmc" ]
 }
 
 # ---------------------------------------------------------------------------
