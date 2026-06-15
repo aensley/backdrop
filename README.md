@@ -4,6 +4,7 @@
   <img src="src/icon.svg" alt="backdrop" width="128"/><br/>
   <a href="https://github.com/aensley/backdrop-cli/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop-cli.svg?logo=gnubash&label=backdrop-cli&logoColor=fff" alt="Version"/></a>
   <a href="https://github.com/aensley/backdrop-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop-cli.svg" alt="License"/></a>
+  <a href="https://github.com/aensley/backdrop-cli/actions/workflows/test.yml"><img src="https://github.com/aensley/backdrop-cli/actions/workflows/test.yml/badge.svg?branch=main"/></a>
   <a href="https://qlty.sh/gh/aensley/projects/backdrop-cli"><img src="https://qlty.sh/gh/aensley/projects/backdrop-cli/maintainability.svg" alt="Maintainability" /></a>
 </p>
 
@@ -65,19 +66,19 @@ The installer:
 backdrop <command>
 ```
 
-| Command                         | Description                                                        |
-| ------------------------------- | ------------------------------------------------------------------ |
-| `update [--force]`              | Refresh wallpaper from the active source (default)                 |
-| `set <source...> [--force]`     | Switch active source(s) and refresh now; use `all` for all sources |
-| `set-time <HH:MM>`              | Set the daily run time (24-hour); restarts timer if active         |
-| `set-rotate-interval <minutes>` | Set rotation interval in minutes; 0 to disable                     |
-| `status`                        | Show the active source, last image, and image metadata             |
-| `random [--force]`              | Refresh from a randomly chosen source (does not change active)     |
-| `enable`                        | Enable the systemd --user timer                                    |
-| `disable`                       | Disable the systemd --user timer                                   |
-| `upgrade`                       | Check for and install the latest version from GitHub               |
-| `uninstall`                     | Remove backdrop from this system                                   |
-| `help`                          | Show help                                                          |
+| Command                         | Description                                                           |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `status`                        | Show version, active source, last image, and image metadata (default) |
+| `update [--force]`              | Refresh wallpaper from the active source                              |
+| `set <source...> [--force]`     | Switch active source(s) and refresh now; use `all` for all sources    |
+| `set-time <HH:MM>`              | Set the daily run time (24-hour); restarts timer if active            |
+| `set-rotate-interval <minutes>` | Set rotation interval in minutes; 0 to disable                        |
+| `random [--force]`              | Refresh from a randomly chosen source (does not change active)        |
+| `enable`                        | Enable the systemd --user timer                                       |
+| `disable`                       | Disable the systemd --user timer                                      |
+| `upgrade`                       | Check for and install the latest version from GitHub                  |
+| `uninstall`                     | Remove backdrop from this system                                      |
+| `help`                          | Show help                                                             |
 
 ## Sources
 
