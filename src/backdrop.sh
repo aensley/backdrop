@@ -823,10 +823,27 @@ cmd_status() {
   local active_srcs active_src labeled s de method
   active_srcs="$(get_sources)"
   active_src="$(get_active_source)"
+
+  local latest meta_val displayed_src
+  latest=""
+  if [ -f "$STATE_DIR/current" ]; then
+    latest="$(<"$STATE_DIR/current")"
+    [ -f "$latest" ] || latest=""
+  fi
+  if [ -z "$latest" ]; then
+    latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
+  fi
+  displayed_src="$active_src"
+  if [ -n "$latest" ]; then
+    local bn="${latest##*/}"
+    local candidate="${bn%-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].jpg}"
+    is_valid "$candidate" && displayed_src="$candidate"
+  fi
+
   if [[ "$active_srcs" == *" "* ]]; then
     labeled=""
     for s in $active_srcs; do
-      [ "$s" = "$active_src" ] && labeled+="[$s] " || labeled+="$s "
+      [ "$s" = "$displayed_src" ] && labeled+="[$s] " || labeled+="$s "
     done
     echo "Active sources: ${labeled% }"
   else
@@ -842,15 +859,6 @@ cmd_status() {
     echo "Timer:          disabled"
   fi
   echo
-  local latest meta_val
-  latest=""
-  if [ -f "$STATE_DIR/current" ]; then
-    latest="$(<"$STATE_DIR/current")"
-    [ -f "$latest" ] || latest=""
-  fi
-  if [ -z "$latest" ]; then
-    latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
-  fi
   [ -n "$latest" ] && echo "Current image:  $latest"
   if [ -n "$latest" ]; then
     meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
