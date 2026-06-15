@@ -702,6 +702,21 @@ cmd_random() {
 }
 
 cmd_enable() {
+  local systemd_user_dir="$BASE_CONFIG_DIR/systemd/user"
+  mkdir -p "$systemd_user_dir"
+
+  # Install unit files if missing (e.g. second user who only has the binary).
+  local unit
+  for unit in backdrop.service backdrop.timer; do
+    if [ ! -f "$systemd_user_dir/$unit" ]; then
+      echo "backdrop: $unit not found; downloading from GitHub release v${VERSION}..."
+      curl -fsSL --max-time 30 -A "$USER_AGENT" \
+        "https://raw.githubusercontent.com/aensley/backdrop-cli/v${VERSION}/src/$unit" \
+        -o "$systemd_user_dir/$unit" ||
+        die "enable: failed to download $unit (v${VERSION}) from GitHub"
+    fi
+  done
+
   apply_timer_config
   systemctl --user enable --now backdrop.timer
   if [ "$ROTATE_INTERVAL" -gt 0 ]; then
