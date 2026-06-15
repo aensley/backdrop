@@ -796,32 +796,35 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         for s in $active_srcs; do
           [ "$s" = "$active_src" ] && labeled+="[$s] " || labeled+="$s "
         done
-        echo "Active sources:    ${labeled% }"
+        echo "Active sources: ${labeled% }"
       else
-        echo "Active source:     $active_src"
+        echo "Active source:  $active_src"
       fi
       if systemctl --user is-enabled --quiet backdrop.timer 2>/dev/null; then
         if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-          echo "Timer:             enabled (rotating every ${ROTATE_INTERVAL} min)"
+          echo "Timer:          enabled (rotating every ${ROTATE_INTERVAL} min)"
         else
-          echo "Timer:             enabled (runs at $TIMER_TIME)"
+          echo "Timer:          enabled (runs at $TIMER_TIME)"
         fi
       else
-        echo "Timer:             disabled"
+        echo "Timer:          disabled"
       fi
       echo
       latest="$(find "$STATE_DIR" -maxdepth 1 -name "${active_src}-*.jpg" -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -1 | cut -f2-)"
-      [ -n "$latest" ] && echo "Current image:     $latest"
+      [ -n "$latest" ] && echo "Current image:  $latest"
       if [ -n "$latest" ]; then
         meta_val="$(_meta_get "${latest%.jpg}.meta" title)"
-        [ -n "$meta_val" ] && echo "Title:             $meta_val"
+        if [ -n "$meta_val" ]; then
+          [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
+          echo "Title:          $meta_val"
+        fi
         meta_val="$(_meta_get "${latest%.jpg}.meta" desc)"
         if [ -n "$meta_val" ]; then
           [ "${#meta_val}" -gt 77 ] && meta_val="${meta_val:0:77}..."
-          echo "Description:       $meta_val"
+          echo "Description:    $meta_val"
         fi
         meta_val="$(_meta_get "${latest%.jpg}.meta" url)"
-        [ -n "$meta_val" ] && echo "URL:               $meta_val"
+        [ -n "$meta_val" ] && echo "URL:            $meta_val"
       fi
       de="$(detect_de)"
       method=""
@@ -861,11 +864,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         method="$(gsettings get org.gnome.desktop.background picture-options 2>/dev/null | tr -d "'")"
       fi
       echo
-      echo "Desktop env:       $de"
-      echo "Display method:    ${method:-unknown}"
-      echo "Zoom min coverage: $ZOOM_MIN_COVERAGE"
-      echo "Screen aspect:     $(screen_ar) (config fallback: $SCREEN_ASPECT_RATIO)"
-      echo "Config file:       $CONFIG_FILE"
+      echo "Display method: $de, ${method:-unknown}"
+      echo "Aspect ratio:   $(screen_ar), $ZOOM_MIN_COVERAGE min coverage"
+      echo "Config file:    $CONFIG_FILE"
+      echo
+      echo "Use 'backdrop help' for usage information."
+      echo
       ;;
     random)
       [ "${2:-}" = "--force" ] && FORCE=true
