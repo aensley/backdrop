@@ -464,11 +464,54 @@ set_wallpaper_kde() {
 #   scaled -> 4  Scaled (fit within screen, letterbox)
 xfce_imagestyle() { case "$1" in zoom) echo 5 ;; scaled) echo 4 ;; *) echo 5 ;; esac }
 
+_xfce_xml_set_wallpaper() {
+  local file="$1" style="$2"
+  local cfg="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+  [ -f "$cfg" ] || die "XFCE: xfconf-query not found and no config at $cfg; install xfconf: sudo apt install xfconf"
+  python3 - "$cfg" "$file" "$style" <<'PY' ||
+import sys
+from xml.etree import ElementTree as ET
+cfg, img, style = sys.argv[1], sys.argv[2], sys.argv[3]
+tree = ET.parse(cfg)
+root = tree.getroot()
+# Update existing last-image/image-style nodes if any exist.
+for prop in root.iter('property'):
+    if prop.get('name') == 'last-image':
+        prop.set('value', img)
+    elif prop.get('name') == 'image-style':
+        prop.set('value', style)
+# If no last-image nodes were found, add them under every workspace node.
+if not any(p.get('name') == 'last-image' for p in root.iter('property')):
+    backdrop = root.find("property[@name='backdrop']")
+    if backdrop is None:
+        sys.stderr.write("XFCE: no backdrop property in config; open Desktop settings once to initialise it\n")
+        sys.exit(1)
+    added = False
+    for screen in backdrop:
+        for monitor in screen:
+            for workspace in monitor:
+                ET.SubElement(workspace, 'property', name='last-image', type='string', value=img)
+                ET.SubElement(workspace, 'property', name='image-style', type='int', value=style)
+                added = True
+    if not added:
+        sys.stderr.write("XFCE: no workspace entries in config; open Desktop settings once to initialise it\n")
+        sys.exit(1)
+tree.write(cfg, xml_declaration=True, encoding='UTF-8')
+PY
+    die "XFCE: failed to update wallpaper config; install xfconf: sudo apt install xfconf"
+  xfdesktop --reload 2>/dev/null || true
+}
+
 set_wallpaper_xfce() {
-  local file="$1" opt="$2" style props prop
+  local file="$1" opt="$2" style props prop all_props
   style="$(xfce_imagestyle "$opt")"
-  props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$')" ||
+  if ! command -v xfconf-query >/dev/null 2>&1; then
+    _xfce_xml_set_wallpaper "$file" "$style"
+    return
+  fi
+  all_props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null)" ||
     die "XFCE: xfconf-query failed"
+  props="$(grep '/last-image$' <<<"$all_props")"
   [ -z "$props" ] && die "XFCE: no backdrop properties found; open Display settings once to initialise them"
   while IFS= read -r prop; do
     xfconf-query -c xfce4-desktop -p "$prop" -s "$file"
