@@ -514,8 +514,8 @@ set_wallpaper_xfce() {
   props="$(grep '/last-image$' <<<"$all_props")"
   [ -z "$props" ] && die "XFCE: no backdrop properties found; open Display settings once to initialise them"
   while IFS= read -r prop; do
-    xfconf-query -c xfce4-desktop -p "$prop" -s "$file"
-    xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" -s "$style"
+    xfconf-query -c xfce4-desktop -p "$prop" --create -t string -s "$file"
+    xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" --create -t int -s "$style"
   done <<<"$props"
 }
 
