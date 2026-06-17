@@ -378,26 +378,57 @@ pick_picture_option() {
 
 # --- Core -------------------------------------------------------------------
 
+# Returns a systemd OnCalendar spec aligned to epoch-based rotation boundaries
+# for standard intervals, or nothing for non-standard ones.
+#   sub-hourly (divides 60):     "*-*-* *:0/<N>:00"
+#   multi-hour (multiple of 60): "*-*-* 0/<N/60>:00:00"
+_rotation_oncalendar() {
+  local interval="$1"
+  if [ "$((60 % interval))" -eq 0 ] && [ "$interval" -le 60 ]; then
+    echo "*-*-* *:0/${interval}:00"
+  elif [ "$((interval % 60))" -eq 0 ] && [ "$interval" -le 1440 ]; then
+    echo "*-*-* 0/$((interval / 60)):00:00"
+  fi
+}
+
 # Write a systemd drop-in that configures the timer based on current settings.
-# Uses OnActiveSec+OnUnitActiveSec when rotation is active, OnCalendar (daily) otherwise.
+# Rotation mode: OnCalendar at epoch-aligned clock boundaries for standard
+# intervals; OnActiveSec snapped to the next boundary for non-standard ones.
+# Daily mode: OnCalendar at TIMER_TIME.
+# OnStartupSec=2min (from the base unit) is preserved in all modes so the
+# wallpaper is applied at login before the next scheduled boundary.
 apply_timer_config() {
   local dropin_dir="$BASE_CONFIG_DIR/systemd/user/backdrop.timer.d"
   mkdir -p "$dropin_dir"
   if [ "$ROTATE_INTERVAL" -gt 0 ]; then
-    # Empty assignments clear any inherited values before setting the new ones.
-    # OnActiveSec fires relative to when the timer starts (first trigger, even if
-    # backdrop.service has never been activated by systemd). OnUnitActiveSec repeats.
-    cat >"$dropin_dir/time.conf" <<EOF
+    local oncal
+    oncal="$(_rotation_oncalendar "$ROTATE_INTERVAL")"
+    if [ -n "$oncal" ]; then
+      cat >"$dropin_dir/time.conf" <<EOF
 [Timer]
 OnCalendar=
-OnStartupSec=
+OnActiveSec=
 OnUnitActiveSec=
-OnActiveSec=${ROTATE_INTERVAL}min
+OnCalendar=${oncal}
+EOF
+    else
+      local now_sec interval_sec delay_sec
+      now_sec="$(date +%s)"
+      interval_sec="$((ROTATE_INTERVAL * 60))"
+      delay_sec="$((interval_sec - now_sec % interval_sec))"
+      cat >"$dropin_dir/time.conf" <<EOF
+[Timer]
+OnCalendar=
+OnActiveSec=
+OnUnitActiveSec=
+OnActiveSec=${delay_sec}s
 OnUnitActiveSec=${ROTATE_INTERVAL}min
 EOF
+    fi
   else
     cat >"$dropin_dir/time.conf" <<EOF
 [Timer]
+OnActiveSec=
 OnUnitActiveSec=
 OnCalendar=
 OnCalendar=*-*-* ${TIMER_TIME}:00
