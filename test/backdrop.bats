@@ -904,6 +904,55 @@ STUB
 }
 
 # ---------------------------------------------------------------------------
+# _rotation_oncalendar
+# ---------------------------------------------------------------------------
+
+@test "_rotation_oncalendar: 1 min -> minutely spec" {
+  run _rotation_oncalendar 1
+  [ "$output" = "*-*-* *:0/1:00" ]
+}
+
+@test "_rotation_oncalendar: 15 min -> quarter-hour spec" {
+  run _rotation_oncalendar 15
+  [ "$output" = "*-*-* *:0/15:00" ]
+}
+
+@test "_rotation_oncalendar: 30 min -> half-hour spec" {
+  run _rotation_oncalendar 30
+  [ "$output" = "*-*-* *:0/30:00" ]
+}
+
+@test "_rotation_oncalendar: 60 min -> hourly spec" {
+  run _rotation_oncalendar 60
+  [ "$output" = "*-*-* *:0/60:00" ]
+}
+
+@test "_rotation_oncalendar: 120 min -> two-hour spec" {
+  run _rotation_oncalendar 120
+  [ "$output" = "*-*-* 0/2:00:00" ]
+}
+
+@test "_rotation_oncalendar: 240 min -> four-hour spec" {
+  run _rotation_oncalendar 240
+  [ "$output" = "*-*-* 0/4:00:00" ]
+}
+
+@test "_rotation_oncalendar: 1440 min -> daily spec" {
+  run _rotation_oncalendar 1440
+  [ "$output" = "*-*-* 0/24:00:00" ]
+}
+
+@test "_rotation_oncalendar: 7 min returns empty (non-standard)" {
+  run _rotation_oncalendar 7
+  [ -z "$output" ]
+}
+
+@test "_rotation_oncalendar: 90 min returns empty (non-standard)" {
+  run _rotation_oncalendar 90
+  [ -z "$output" ]
+}
+
+# ---------------------------------------------------------------------------
 # get_active_source
 # ---------------------------------------------------------------------------
 
