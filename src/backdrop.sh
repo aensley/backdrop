@@ -542,8 +542,8 @@ set_wallpaper_xfce() {
   fi
   all_props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null)" ||
     die "XFCE: xfconf-query failed"
-  props="$(grep '/last-image$' <<<"$all_props")"
-  [ -z "$props" ] && die "XFCE: no backdrop properties found; open Display settings once to initialise them"
+  props="$(grep '/last-image$' <<<"$all_props" || true)"
+  [ -z "$props" ] && die "XFCE: no backdrop properties found; launch the Desktop app once to initialise the wallpaper properties"
   while IFS= read -r prop; do
     xfconf-query -c xfce4-desktop -p "$prop" --create -t string -s "$file"
     xfconf-query -c xfce4-desktop -p "${prop%last-image}image-style" --create -t int -s "$style"
