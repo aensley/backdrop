@@ -1,25 +1,25 @@
-# backdrop-cli
+# backdrop
 
 <p align="center">
   <img src="src/icon.svg" alt="backdrop" width="128"/><br/>
-  <a href="https://github.com/aensley/backdrop-cli/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop-cli.svg?logo=gnubash&label=backdrop-cli&logoColor=fff" alt="Version"/></a>
-  <a href="https://github.com/aensley/backdrop-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop-cli.svg" alt="License"/></a>
-  <a href="https://github.com/aensley/backdrop-cli/actions/workflows/test.yml"><img src="https://github.com/aensley/backdrop-cli/actions/workflows/test.yml/badge.svg?branch=main"/></a>
-  <a href="https://qlty.sh/gh/aensley/projects/backdrop-cli"><img src="https://qlty.sh/gh/aensley/projects/backdrop-cli/maintainability.svg" alt="Maintainability" /></a>
+  <a href="https://github.com/aensley/backdrop/releases"><img src="https://img.shields.io/github/v/release/aensley/backdrop.svg?logo=gnubash&label=backdrop&logoColor=fff" alt="Version"/></a>
+  <a href="https://github.com/aensley/backdrop/blob/main/LICENSE"><img src="https://img.shields.io/github/license/aensley/backdrop.svg" alt="License"/></a>
+  <a href="https://github.com/aensley/backdrop/actions/workflows/test.yml"><img src="https://github.com/aensley/backdrop/actions/workflows/test.yml/badge.svg?branch=main"/></a>
+  <a href="https://qlty.sh/gh/aensley/projects/backdrop"><img src="https://qlty.sh/gh/aensley/projects/backdrop/maintainability.svg" alt="Maintainability" /></a>
 </p>
 
 Set a new desktop wallpaper every day from various sources.
 
 ## What it does
 
-backdrop-cli fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
+backdrop fetches a daily image from one of several curated sources and sets it as your desktop wallpaper. It automatically picks the best display mode based on the image dimensions and your screen aspect ratio.
 
 Run it manually or let a systemd timer handle it on a schedule.
 
 ## Quick Install
 
 ```bash
-curl -fsSL https://ensl.ee/backdrop-cli | bash
+curl -fsSL https://ensl.ee/backdrop | bash
 ```
 
 ## Requirements
@@ -30,7 +30,7 @@ curl -fsSL https://ensl.ee/backdrop-cli | bash
 
 ## Desktop Environments
 
-backdrop-cli supports the following Desktop Environments.
+backdrop supports the following Desktop Environments.
 
 | Desktop               | Method                        | Notes                                                                           |
 | --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
@@ -49,8 +49,8 @@ backdrop-cli supports the following Desktop Environments.
 Use the [quick install script](#quick-install) or clone the repo and run the installer locally:
 
 ```bash
-git clone https://github.com/aensley/backdrop-cli.git \
-  && cd backdrop-cli/src && ./install.sh
+git clone https://github.com/aensley/backdrop.git \
+  && cd backdrop/src && ./install.sh
 ```
 
 The installer:
