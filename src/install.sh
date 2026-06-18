@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="aensley/backdrop-cli"
+REPO="aensley/backdrop"
 
 # Resolve the script's directory only when running from a real file, not piped stdin.
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then

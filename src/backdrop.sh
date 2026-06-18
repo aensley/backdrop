@@ -742,7 +742,7 @@ cmd_upgrade() {
   local api_response latest_tag latest_version raw_url tmp
   echo "backdrop: checking for updates (current: v${VERSION})..."
   api_response="$(curl -fsSL --max-time 15 -A "$USER_AGENT" \
-    "https://api.github.com/repos/aensley/backdrop-cli/releases/latest")" ||
+    "https://api.github.com/repos/aensley/backdrop/releases/latest")" ||
     die "upgrade: could not reach GitHub API"
   latest_tag="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' \
     <<<"$api_response" 2>/dev/null)" ||
@@ -753,7 +753,7 @@ cmd_upgrade() {
     return 0
   fi
   echo "backdrop: upgrading v${VERSION} -> v${latest_version}..."
-  raw_url="https://raw.githubusercontent.com/aensley/backdrop-cli/${latest_tag}/src/backdrop.sh"
+  raw_url="https://raw.githubusercontent.com/aensley/backdrop/${latest_tag}/src/backdrop.sh"
   tmp="$(mktemp)"
   curl -fsSL --max-time 60 -A "$USER_AGENT" "$raw_url" -o "$tmp" ||
     {
@@ -785,7 +785,7 @@ cmd_enable() {
     if [ ! -f "$systemd_user_dir/$unit" ]; then
       echo "backdrop: $unit not found; downloading from GitHub release v${VERSION}..."
       curl -fsSL --max-time 30 -A "$USER_AGENT" \
-        "https://raw.githubusercontent.com/aensley/backdrop-cli/v${VERSION}/src/$unit" \
+        "https://raw.githubusercontent.com/aensley/backdrop/v${VERSION}/src/$unit" \
         -o "$systemd_user_dir/$unit" ||
         die "enable: failed to download $unit (v${VERSION}) from GitHub"
     fi
@@ -798,6 +798,7 @@ cmd_enable() {
   else
     echo "backdrop: daily timer enabled (runs at $TIMER_TIME)."
   fi
+  cmd_update
 }
 
 cmd_disable() {
