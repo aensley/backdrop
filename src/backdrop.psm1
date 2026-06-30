@@ -15,7 +15,7 @@ $script:Source = 'iotd'
 $script:RotateInterval = 0
 $script:ScreenAspectRatio = 1.7778
 $script:ZoomMinCoverage = 0.55
-$script:UserAgent = "backdrop/1.6 (personal daily wallpaper script)"
+$script:UserAgent = "backdrop/$(($script:Version -split '\.')[0..1] -join '.') (personal daily wallpaper script)"
 $script:TimerTime = '08:00'
 
 $null = New-Item -ItemType Directory -Force -Path $script:StateDir, $script:ConfigDir

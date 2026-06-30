@@ -20,7 +20,7 @@ InModuleScope backdrop {
     $script:ScreenAspectRatio = 1.7778
     $script:ZoomMinCoverage = 0.55
     $script:TimerTime = '08:00'
-    $script:UserAgent = 'backdrop/1.6 (personal daily wallpaper script)'
+    $script:UserAgent = "backdrop/$(($script:Version -split '\.')[0..1] -join '.') (personal daily wallpaper script)"
     New-Item -ItemType Directory -Force -Path $script:ConfigDir, $script:StateDir | Out-Null
   }
 
