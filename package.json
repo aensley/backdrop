@@ -62,7 +62,7 @@
       [
         "@semantic-release/exec",
         {
-          "prepareCmd": "sed -i 's/^VERSION=.*/VERSION=\"${nextRelease.version}\"/' src/backdrop.sh"
+          "prepareCmd": "sed -i 's/^VERSION=.*/VERSION=\"${nextRelease.version}\"/' src/backdrop.sh && sed -i 's/^\\$script:Version[[:space:]]*=.*/\\$script:Version          = '\"'\"'${nextRelease.version}'\"'\"'/' src/backdrop.psm1 && sed -i 's/ModuleVersion[[:space:]]*=.*/ModuleVersion     = '\"'\"'${nextRelease.version}'\"'\"'/' src/backdrop.psd1"
         }
       ],
       [
@@ -70,7 +70,9 @@
         {
           "assets": [
             "package.json",
-            "src/backdrop.sh"
+            "src/backdrop.sh",
+            "src/backdrop.psm1",
+            "src/backdrop.psd1"
           ]
         }
       ],
