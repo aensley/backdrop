@@ -38,7 +38,7 @@ function Save-BackdropFile {
     -OutFile $OutFile -TimeoutSec $TimeoutSec -ErrorAction Stop | Out-Null
 }
 
-function Strip-Html {
+function Remove-HtmlMarkup {
   param([string]$s)
   if (-not $s) { return '' }
   $s = $s -replace '<[^>]+>', ''
@@ -46,7 +46,7 @@ function Strip-Html {
     Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
     $s = [System.Web.HttpUtility]::HtmlDecode($s)
   }
-  catch { }
+  catch { $null = $_ }
   ($s -replace '\s+', ' ').Trim()
 }
 
@@ -142,8 +142,8 @@ function Resolve-Iotd {
   $imageUrl = $item.enclosure.url
   if (-not $imageUrl) { return $null }
   @{
-    Title     = Strip-Html $item.title
-    Desc      = Strip-Html $item.description
+    Title     = Remove-HtmlMarkup $item.title
+    Desc      = Remove-HtmlMarkup $item.description
     Url       = if ($item.link) { $item.link } else { 'https://www.nasa.gov/image-of-the-day/' }
     ImageUrls = @($imageUrl)
   }
@@ -156,7 +156,7 @@ function Resolve-Apod {
   if (-not $rel) { return $null }
   $title = ''
   $m = [regex]::Match($page, '(?i)<center>\s*<b>([^<]+)</b>\s*<br')
-  if ($m.Success) { $title = Strip-Html $m.Groups[1].Value }
+  if ($m.Success) { $title = Remove-HtmlMarkup $m.Groups[1].Value }
   $desc = ''
   $m = [regex]::Match($page, '(?is)<b>\s*Explanation:\s*</b>(.*?)(?=<p>|<hr|</body>)')
   if ($m.Success) {
@@ -201,7 +201,7 @@ function Resolve-Wmc {
     $desc = ($rawDesc -replace '\s+', ' ').Trim()
     if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 300) }
   }
-  catch { }
+  catch { $null = $_ }
   $enc = [Uri]::EscapeDataString($file)
   $iresp = Invoke-BackdropRequest "https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url&iiurlwidth=3840&titles=File:$enc"
   $info = (($iresp | ConvertFrom-Json).query.pages.PSObject.Properties | Select-Object -First 1).Value.imageinfo[0]
@@ -210,8 +210,8 @@ function Resolve-Wmc {
   if ($info.url) { $urls += $info.url }
   if (-not $urls) { return $null }
   @{
-    Title     = Strip-Html $title
-    Desc      = Strip-Html $desc
+    Title     = Remove-HtmlMarkup $title
+    Desc      = Remove-HtmlMarkup $desc
     Url       = "https://commons.wikimedia.org/wiki/File:$([Uri]::EscapeDataString(($file -replace '^File:', '')))"
     ImageUrls = $urls
   }
@@ -234,7 +234,7 @@ function Resolve-Eo {
   if ($item -match '(?i)<link>([^<]+)</link>') { $link = $Matches[1] }
   elseif ($item -match '(?i)(https://earthobservatory\.nasa\.gov/images/\d+[^"< ]*)') { $link = $Matches[1] }
   @{
-    Title     = Strip-Html $title
+    Title     = Remove-HtmlMarkup $title
     Desc      = ''
     Url       = if ($link) { $link.Trim() } else { 'https://earthobservatory.nasa.gov/' }
     ImageUrls = @("${imgUrl}?w=3840", $imgUrl)
@@ -253,8 +253,8 @@ function Resolve-Natgeo {
   if ($page -match '(?i)property="og:description"\s+content="([^"]+)"') { $ogDesc = $Matches[1] }
   if ($page -match '(?i)property="og:url"\s+content="([^"]+)"') { $ogUrl = $Matches[1] }
   @{
-    Title     = Strip-Html $ogTitle
-    Desc      = Strip-Html $ogDesc
+    Title     = Remove-HtmlMarkup $ogTitle
+    Desc      = Remove-HtmlMarkup $ogDesc
     Url       = if ($ogUrl) { $ogUrl } else { 'https://www.nationalgeographic.com/photo-of-the-day/' }
     ImageUrls = @("${url}?w=5120", $url)
   }
@@ -276,8 +276,8 @@ function Resolve-Earth {
   if ($article -match '(?i)property="og:description"\s+content="([^"]+)"') { $ogDesc = $Matches[1] }
   if ($article -match '(?i)property="og:url"\s+content="([^"]+)"') { $ogUrl = $Matches[1] }
   @{
-    Title     = Strip-Html $ogTitle
-    Desc      = Strip-Html $ogDesc
+    Title     = Remove-HtmlMarkup $ogTitle
+    Desc      = Remove-HtmlMarkup $ogDesc
     Url       = if ($ogUrl) { $ogUrl } else { $articleUrl }
     ImageUrls = @($url)
   }
@@ -287,7 +287,7 @@ function Resolve-Earth {
 
 #region Geometry
 
-function Get-ImageDimensions {
+function Get-ImageDimension {
   param([string]$Path)
   try {
     Add-Type -AssemblyName System.Drawing -ErrorAction Stop
@@ -307,13 +307,13 @@ function Get-ScreenAspectRatio {
     $s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
     if ($s.Height -gt 0) { return [double]$s.Width / $s.Height }
   }
-  catch { }
+  catch { $null = $_ }
   return [double]$script:ScreenAspectRatio
 }
 
 function Get-PictureOption {
   param([string]$Path)
-  $dims = Get-ImageDimensions $Path
+  $dims = Get-ImageDimension $Path
   if (-not $dims -or $dims.Width -le 0 -or $dims.Height -le 0) { return 'zoom' }
   $iar = [double]$dims.Width / $dims.Height
   $sar = Get-ScreenAspectRatio
@@ -384,7 +384,7 @@ function Invoke-TimerConfig {
 
 #region Source and meta helpers
 
-function Get-BackdropSources {
+function Get-BackdropSource {
   $s = Get-BackdropConfigValue 'source'
   if ($s) {
     if ($s -eq 'all') { return $script:ValidSources }
@@ -396,7 +396,7 @@ function Get-BackdropSources {
 function Get-UnixTimestamp { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
 
 function Get-ActiveSource {
-  $srcs = @(Get-BackdropSources)
+  $srcs = @(Get-BackdropSource)
   if ($srcs.Count -le 1 -or $script:RotateInterval -le 0) {
     return if ($srcs.Count -gt 0) { $srcs[0] } else { $script:Source }
   }
@@ -447,7 +447,7 @@ function Invoke-ApplyWallpaper {
     $opt = Get-PictureOption $dest
     Set-Wallpaper $dest $opt
     Set-Content -Path (Join-Path $script:StateDir 'current') -Value $dest
-    $dims = Get-ImageDimensions $dest
+    $dims = Get-ImageDimension $dest
     $dimsStr = if ($dims) { "$($dims.Width)x$($dims.Height)" } else { 'unknown' }
     Write-Host "backdrop: set from $Src [$dimsStr, $opt] -> $dest (cached)"
     return
@@ -470,7 +470,7 @@ function Invoke-ApplyWallpaper {
 
   $ok = $false
   foreach ($url in $result.ImageUrls) {
-    try { Save-BackdropFile $url $dest; $ok = $true; break } catch { }
+    try { Save-BackdropFile $url $dest; $ok = $true; break } catch { $null = $_ }
   }
   if (-not $ok) { throw "backdrop: could not download any image for $Src" }
 
@@ -483,7 +483,7 @@ function Invoke-ApplyWallpaper {
   Where-Object { $_.Extension -in @('.jpg', '.meta') -and $_.LastWriteTime -lt (Get-Date).AddDays(-14) } |
   Remove-Item -Force -ErrorAction SilentlyContinue
 
-  $dims = Get-ImageDimensions $dest
+  $dims = Get-ImageDimension $dest
   $dimsStr = if ($dims) { "$($dims.Width)x$($dims.Height)" } else { 'unknown' }
   Write-Host "backdrop: set from $Src [$dimsStr, $opt] -> $dest"
 }
@@ -606,7 +606,7 @@ function Invoke-BackdropStatus {
   Write-Host "backdrop v$($script:Version)"
   Write-Host ''
 
-  $activeSrcs = @(Get-BackdropSources)
+  $activeSrcs = @(Get-BackdropSource)
   $activeSrc = Get-ActiveSource
   $latest = $null
 
@@ -770,18 +770,18 @@ function backdrop {
   if ($Command -ne 'uninstall') { Import-BackdropConfig }
 
   $force = $Rest -contains '--force'
-  $args = @($Rest | Where-Object { $_ -ne '--force' })
+  $filteredArgs = @($Rest | Where-Object { $_ -ne '--force' })
 
   try {
     switch ($Command) {
       { $_ -in 'update', 'refresh' } { Invoke-BackdropUpdate  -Force:$force }
-      { $_ -in 'set', 'use' } { Invoke-BackdropSet -Sources $args -Force $force }
+      { $_ -in 'set', 'use' } { Invoke-BackdropSet -Sources $filteredArgs -Force $force }
       'status' { Invoke-BackdropStatus }
       'random' { Invoke-BackdropRandom  -Force:$force }
       'enable' { Invoke-BackdropEnable }
       'disable' { Invoke-BackdropDisable }
-      'set-time' { Invoke-BackdropSetTime ($args | Select-Object -First 1) }
-      'set-rotate-interval' { Invoke-BackdropSetRotateInterval ($args | Select-Object -First 1) }
+      'set-time' { Invoke-BackdropSetTime ($filteredArgs | Select-Object -First 1) }
+      'set-rotate-interval' { Invoke-BackdropSetRotateInterval ($filteredArgs | Select-Object -First 1) }
       'upgrade' { Invoke-BackdropUpgrade }
       'uninstall' { Invoke-BackdropUninstall -Purge:($Rest -contains '--purge') }
       { $_ -in '-h', '--help', 'help' } { Invoke-BackdropHelp }

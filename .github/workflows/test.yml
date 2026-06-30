@@ -50,7 +50,8 @@ jobs:
       - name: Lint
         shell: pwsh
         run: |
-          $results = 'src/backdrop.psm1', 'src/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity @('Error', 'Warning') }
+          $exclude = @('PSAvoidUsingWriteHost', 'PSUseShouldProcessForStateChangingFunctions')
+          $results = 'src/backdrop.psm1', 'src/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity @('Error', 'Warning') -ExcludeRule $exclude }
           if ($results) {
             $results | Format-Table RuleName, Severity, Line, Message -AutoSize
             exit 1

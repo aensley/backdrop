@@ -142,43 +142,43 @@ user_agent = test-agent/1.0
 
   Describe 'Get-PictureOption' {
     It 'returns zoom for a wide image on a 16:9 screen' {
-      Mock Get-ImageDimensions { @{ Width = 1920; Height = 1080 } }
+      Mock Get-ImageDimension { @{ Width = 1920; Height = 1080 } }
       Mock Get-ScreenAspectRatio { 1.7778 }
       Get-PictureOption 'dummy.jpg' | Should -Be 'zoom'
     }
     It 'returns scaled for a tall image on a 16:9 screen' {
-      Mock Get-ImageDimensions { @{ Width = 1080; Height = 1920 } }
+      Mock Get-ImageDimension { @{ Width = 1080; Height = 1920 } }
       Mock Get-ScreenAspectRatio { 1.7778 }
       Get-PictureOption 'dummy.jpg' | Should -Be 'scaled'
     }
     It 'returns zoom for a square image (coverage 0.5625 >= threshold 0.55)' {
-      Mock Get-ImageDimensions { @{ Width = 1000; Height = 1000 } }
+      Mock Get-ImageDimension { @{ Width = 1000; Height = 1000 } }
       Mock Get-ScreenAspectRatio { 1.7778 }
       $script:ZoomMinCoverage = 0.55
       Get-PictureOption 'dummy.jpg' | Should -Be 'zoom'
     }
     It 'returns zoom when image dimensions cannot be read' {
-      Mock Get-ImageDimensions { $null }
+      Mock Get-ImageDimension { $null }
       Get-PictureOption 'dummy.jpg' | Should -Be 'zoom'
     }
   }
 
   # -------------------------------------------------------------------------
-  # Strip-Html
+  # Remove-HtmlMarkup
   # -------------------------------------------------------------------------
 
-  Describe 'Strip-Html' {
+  Describe 'Remove-HtmlMarkup' {
     It 'removes HTML tags' {
-      Strip-Html '<b>Hello</b> <i>World</i>' | Should -Be 'Hello World'
+      Remove-HtmlMarkup '<b>Hello</b> <i>World</i>' | Should -Be 'Hello World'
     }
     It 'decodes common HTML entities' {
-      Strip-Html '&amp; &lt; &gt; &quot; &#39;' | Should -Be '& < > " '''
+      Remove-HtmlMarkup '&amp; &lt; &gt; &quot; &#39;' | Should -Be '& < > " '''
     }
     It 'decodes numeric entities with leading zeros' {
-      Strip-Html "San Francisco&#039;s Streets" | Should -Be "San Francisco's Streets"
+      Remove-HtmlMarkup "San Francisco&#039;s Streets" | Should -Be "San Francisco's Streets"
     }
     It 'collapses whitespace' {
-      Strip-Html '  foo   bar  ' | Should -Be 'foo bar'
+      Remove-HtmlMarkup '  foo   bar  ' | Should -Be 'foo bar'
     }
   }
 
@@ -220,24 +220,24 @@ user_agent = test-agent/1.0
   }
 
   # -------------------------------------------------------------------------
-  # Get-BackdropSources
+  # Get-BackdropSource
   # -------------------------------------------------------------------------
 
-  Describe 'Get-BackdropSources' {
+  Describe 'Get-BackdropSource' {
     It 'returns default source when config does not exist' {
-      Get-BackdropSources | Should -Be @('iotd')
+      Get-BackdropSource | Should -Be @('iotd')
     }
     It 'returns a single configured source' {
       Set-Content $script:ConfigFile 'source = bing'
-      Get-BackdropSources | Should -Be @('bing')
+      Get-BackdropSource | Should -Be @('bing')
     }
     It 'returns a list for multiple configured sources' {
       Set-Content $script:ConfigFile 'source = iotd apod bing'
-      Get-BackdropSources | Should -Be @('iotd', 'apod', 'bing')
+      Get-BackdropSource | Should -Be @('iotd', 'apod', 'bing')
     }
     It "expands 'all' to every valid source" {
       Set-Content $script:ConfigFile 'source = all'
-      Get-BackdropSources | Should -Be $script:ValidSources
+      Get-BackdropSource | Should -Be $script:ValidSources
     }
   }
 
