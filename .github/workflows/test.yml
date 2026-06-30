@@ -50,7 +50,7 @@ jobs:
       - name: Lint
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path @('src/backdrop.psm1', 'src/install.ps1') -Severity @('Error', 'Warning')
+          $results = 'src/backdrop.psm1', 'src/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity @('Error', 'Warning') }
           if ($results) {
             $results | Format-Table RuleName, Severity, Line, Message -AutoSize
             exit 1
