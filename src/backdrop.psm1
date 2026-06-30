@@ -39,8 +39,10 @@ function Save-BackdropFile {
 }
 
 function Remove-HtmlMarkup {
-  param([string]$s)
+  param($s)
+  if ($s -is [System.Xml.XmlNode]) { $s = $s.InnerText }
   if (-not $s) { return '' }
+  $s = [string]$s
   $s = $s -replace '<[^>]+>', ''
   try {
     Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
@@ -138,7 +140,7 @@ function Import-BackdropConfig {
 function Resolve-Iotd {
   $feed = Invoke-BackdropRequest 'https://www.nasa.gov/feeds/iotd-feed/'
   [xml]$xml = $feed
-  $item = $xml.rss.channel.item | Select-Object -First 1
+  $item = @($xml.rss.channel.item)[0]
   $imageUrl = $item.enclosure.url
   if (-not $imageUrl) { return $null }
   @{
@@ -398,9 +400,9 @@ function Get-UnixTimestamp { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
 function Get-ActiveSource {
   $srcs = @(Get-BackdropSource)
   if ($srcs.Count -le 1 -or $script:RotateInterval -le 0) {
-    return if ($srcs.Count -gt 0) { $srcs[0] } else { $script:Source }
+    if ($srcs.Count -gt 0) { return $srcs[0] } else { return $script:Source }
   }
-  $idx = [int]((Get-UnixTimestamp) / 60 / $script:RotateInterval) % $srcs.Count
+  $idx = [Math]::Floor((Get-UnixTimestamp) / 60 / $script:RotateInterval) % $srcs.Count
   return $srcs[$idx]
 }
 
