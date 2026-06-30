@@ -1,11 +1,18 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0' }
 
-# Must run at script scope (not inside BeforeAll) so the module is loaded during Pester's discovery
-# phase, which is required for InModuleScope to work. APPDATA/LOCALAPPDATA don't exist on Linux
-# but the module reads them at load time, so they must be set before the import.
+# Script-scope import: runs during Pester discovery so InModuleScope can find the module.
+# APPDATA/LOCALAPPDATA don't exist on Linux but the module reads them at load time.
 if (-not $env:APPDATA) { $env:APPDATA = [System.IO.Path]::GetTempPath() }
 if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [System.IO.Path]::GetTempPath() }
 Import-Module "$PSScriptRoot/../src/backdrop.psm1" -Force
+
+BeforeAll {
+  # Pester does not re-execute the script body during the run phase, so we must re-import here to
+  # ensure the module is present when InModuleScope enters it for test execution.
+  if (-not $env:APPDATA) { $env:APPDATA = [System.IO.Path]::GetTempPath() }
+  if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [System.IO.Path]::GetTempPath() }
+  Import-Module "$PSScriptRoot/../src/backdrop.psm1" -Force
+}
 
 # All tests run inside the module scope so private functions are directly callable.
 InModuleScope backdrop {
