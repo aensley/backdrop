@@ -13,35 +13,26 @@
   "license": "MIT",
   "scripts": {
     "commit": "czg",
-    "test": "npm run test:sh && npm run test:ps",
-    "test:sh": "shellcheck src/backdrop.sh src/install.sh test/backdrop.bats && bats test/",
-    "test:ps": "pwsh -Command \"\\$result = Invoke-Pester test/backdrop.tests.ps1 -Output Detailed -PassThru; if (\\$result.FailedCount -gt 0) { exit 1 }\"",
-    "lint": "npm run lint:sh && npm run lint:ps",
-    "lint:sh": "prettier --check . && ~/go/bin/shfmt -d -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats",
-    "lint:ps": "pwsh -Command \"\\$exclude = @('PSAvoidUsingWriteHost', 'PSUseShouldProcessForStateChangingFunctions'); \\$results = 'src/backdrop.psm1', 'src/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path \\$_ -Severity @('Error', 'Warning') -ExcludeRule \\$exclude }; if (\\$results) { \\$results | Format-Table RuleName, Severity, Line, Message -AutoSize; exit 1 }\"",
-    "lint:fix": "npm run lint:sh:fix && npm run lint:ps:fix",
-    "lint:sh:fix": "prettier --write . && ~/go/bin/shfmt -w -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats",
-    "lint:ps:fix": "pwsh -Command \"\\$exclude = @('PSAvoidUsingWriteHost', 'PSUseShouldProcessForStateChangingFunctions'); 'src/backdrop.psm1', 'src/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path \\$_ -Severity @('Error', 'Warning') -ExcludeRule \\$exclude -Fix }\"",
-    "install:ps": "pwsh -Command \"Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -ErrorAction Stop; Install-Module -Name Pester -Scope CurrentUser -Force -MinimumVersion 5.0 -ErrorAction Stop\"",
+    "test": "shellcheck src/backdrop.sh src/install.sh test/backdrop.bats test/integration/*.bats .github/scripts/*.sh && bats test/",
+    "test:integration": "bats test/integration/",
+    "lint": "prettier --check . && ~/go/bin/shfmt -d -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats test/integration/*.bats .github/scripts/*.sh",
+    "lint:fix": "prettier --write . && ~/go/bin/shfmt -w -i 2 -ci src/backdrop.sh src/install.sh test/backdrop.bats test/integration/*.bats .github/scripts/*.sh",
     "prepare": "npx simple-git-hooks",
     "update": "npx npm-check-updates -u && npm update"
   },
   "devDependencies": {
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.8",
-    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.11",
+    "@semantic-release/npm": "^13.2.0",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "bats": "^1.13.0",
-    "conventional-changelog-conventionalcommits": "^10.2.0",
-    "czg": "^1.13.1",
-    "prettier": "^3.9.3",
-    "semantic-release": "^25.0.5",
-    "simple-git-hooks": "^2.13.1"
-  },
-  "allowScripts": {
-    "simple-git-hooks@2.13.1": true
+    "conventional-changelog-conventionalcommits": "^10.4.1",
+    "czg": "^1.14.0",
+    "prettier": "^3.10.1",
+    "semantic-release": "^26.0.1",
+    "simple-git-hooks": "^2.14.0"
   },
   "release": {
     "branches": [
@@ -69,7 +60,7 @@
       [
         "@semantic-release/exec",
         {
-          "prepareCmd": "sed -i 's/^VERSION=.*/VERSION=\"${nextRelease.version}\"/' src/backdrop.sh && sed -i 's/^\\$script:Version[[:space:]]*=.*/\\$script:Version          = '\"'\"'${nextRelease.version}'\"'\"'/' src/backdrop.psm1 && sed -i 's/ModuleVersion[[:space:]]*=.*/ModuleVersion     = '\"'\"'${nextRelease.version}'\"'\"'/' src/backdrop.psd1"
+          "prepareCmd": "sed -i 's/^VERSION=.*/VERSION=\"${nextRelease.version}\"/' src/backdrop.sh"
         }
       ],
       [
@@ -77,9 +68,7 @@
         {
           "assets": [
             "package.json",
-            "src/backdrop.sh",
-            "src/backdrop.psm1",
-            "src/backdrop.psd1"
+            "src/backdrop.sh"
           ]
         }
       ],

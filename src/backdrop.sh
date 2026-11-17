@@ -8,9 +8,9 @@
 # but can also be invoked manually to switch sources or get status info.
 
 # Sources:
-# apod:   https://apod.nasa.gov/apod/
+# apod:   https://science.nasa.gov/apod/
 # bing:   https://www.bing.com/
-# earth:  https://www.earth.com/gallery/images-of-the-day/
+# earth:  https://www.earth.com/image/
 # eo:     https://science.nasa.gov/earth/earth-observatory/image-of-the-day/
 # iotd:   https://www.nasa.gov/image-of-the-day/
 # natgeo: https://www.nationalgeographic.com/photo-of-the-day/
@@ -170,30 +170,38 @@ resolve_iotd() {
 
 # NASA Astronomy Picture of the Day
 resolve_apod() {
-  local page rel _out title desc
-  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://apod.nasa.gov/apod/astropix.html")" || return 1
-  rel="$(grep -ioE 'href="image/[^"]+\.(jpg|jpeg|png|gif)"' <<<"$page" |
-    head -1 | sed -E 's/.*href="([^"]+)".*/\1/I')" || true
+  local page _out title desc
+  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://science.nasa.gov/apod/")" || return 1
+  # Today's entry is the "media-detail-hero" block: first <img> is the picture
+  # (a video day has none), first <h2> is the title, then the explanation.
+  # Prints: title, description, then candidate image URLs (best first).
   _out="$(python3 -c '
 import re, sys
 page = sys.stdin.read()
-tm = re.search(r"<center>\s*<b>([^<]+)</b>\s*<br", page, re.IGNORECASE)
-title = tm.group(1).strip() if tm else ""
-em = re.search(r"<b>\s*Explanation:\s*</b>(.*?)(?=<p>|<hr|</body>)", page, re.DOTALL | re.IGNORECASE)
-if em:
-    desc = re.sub(r"<[^>]+>", "", em.group(1))
-    desc = " ".join(desc.split())[:400]
-else:
-    desc = ""
+hm = re.search(r"class=\"[^\"]*\bhds-media-detail-hero\b", page)
+hero = page[hm.start():page.find("</article>", hm.start())] if hm else ""
+tm = re.search(r"<h2[^>]*>(.*?)</h2>", hero, re.DOTALL | re.IGNORECASE)
+title = " ".join(re.sub(r"<[^>]+>", "", tm.group(1)).split()) if tm else ""
+em = re.search(r"Explanation:\s*</strong>(.*?)</p>", hero, re.DOTALL | re.IGNORECASE)
+desc = " ".join(re.sub(r"<[^>]+>", "", em.group(1)).split())[:400] if em else ""
 print(title)
 print(desc)
+im = re.search(r"<img\b[^>]*\bsrc=\"(https://assets\.science\.nasa\.gov/[^\"]+)\"", hero, re.IGNORECASE)
+if im:
+    src = im.group(1)
+    # Renditions look like <original>/jcr:content/renditions/cq5dam.web.1280.1280.jpeg;
+    # prefer the original upload, fall back to the rendition.
+    orig = src.split("/jcr:content/", 1)[0]
+    if orig != src and re.search(r"\.(jpe?g|png|gif)$", orig, re.IGNORECASE):
+        print(orig)
+    print(src)
 ' <<<"$page" 2>/dev/null)" || true
   title="$(sed -n '1p' <<<"$_out")"
   desc="$(sed -n '2p' <<<"$_out")"
   [ -n "$title" ] && printf 'META_TITLE:%s\n' "$(_strip_html "$title")"
   [ -n "$desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$desc")"
-  printf 'META_URL:%s\n' "https://apod.nasa.gov/apod/astropix.html"
-  [ -n "$rel" ] && printf '%s\n' "https://apod.nasa.gov/apod/$rel"
+  printf 'META_URL:%s\n' "https://science.nasa.gov/apod/"
+  sed -n '3,$p' <<<"$_out"
   return 0
 }
 
@@ -285,20 +293,27 @@ resolve_natgeo() {
 
 # Earth.com Image of the Day
 resolve_earth() {
-  local page article_url article og_title og_desc og_url url
-  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.earth.com/gallery/images-of-the-day/")" || return 1
-  article_url="$(grep -oiE 'href="https://www\.earth\.com/image/[^"]+"' <<<"$page" |
+  local page card article_url article og_title og_desc og_url og_image orig
+  page="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "https://www.earth.com/image/")" || return 1
+  # Today's image is the first article linked from the "ImageOfTheDayCard" block.
+  case "$page" in *ImageOfTheDayCard*) ;; *) return 0 ;; esac
+  card="${page#*ImageOfTheDayCard}"
+  article_url="$(grep -oiE 'href="https://www\.earth\.com/[^"]+/"' <<<"$card" |
     sed -E 's/href="([^"]+)".*/\1/' | head -1)" || true
   [ -n "$article_url" ] || return 0
   article="$(curl -fsSL --max-time 30 -A "$USER_AGENT" "$article_url")" || return 1
   og_title="$(grep -oiE 'property="og:title" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
   og_desc="$(grep -oiE 'property="og:description" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
   og_url="$(grep -oiE 'property="og:url" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
-  url="$(grep -oiE 'https://cff2\.earth\.com/uploads/[^"]+\.(jpg|jpeg|png)' <<<"$article" | head -1)" || true
+  og_image="$(grep -oiE 'property="og:image" content="[^"]+"' <<<"$article" | sed -E 's/.*content="([^"]+)".*/\1/' | head -1)" || true
+  # og:image is a resized copy (https://www.earth.com/img/16x9/1920/<path>);
+  # the original lives at https://cff2.earth.com/<path>.
+  orig="$(sed -nE 's#^https://www\.earth\.com/img/[^/]+/[0-9]+/(.+\.(jpe?g|png))$#https://cff2.earth.com/\1#Ip' <<<"$og_image")" || true
   [ -n "$og_title" ] && printf 'META_TITLE:%s\n' "$(_strip_html "$og_title")"
   [ -n "$og_desc" ] && printf 'META_DESC:%s\n' "$(_strip_html "$og_desc")"
   printf 'META_URL:%s\n' "${og_url:-$article_url}"
-  [ -n "$url" ] && printf '%s\n' "$url"
+  [ -n "$orig" ] && printf '%s\n' "$orig"
+  [ -n "$og_image" ] && printf '%s\n' "$og_image"
   return 0
 }
 
@@ -445,12 +460,13 @@ apply_timer_time() {
 
 # --- Desktop environment / wallpaper setters --------------------------------
 
-# Prints "gnome", "kde", or "unknown".
+# Prints "gnome", "cinnamon", "kde", "xfce", "mate", "cosmic", "lxqt", or "unknown".
 detect_de() {
   local combined
   combined="$(printf '%s:%s' "${XDG_CURRENT_DESKTOP:-}" "${DESKTOP_SESSION:-}" | tr '[:lower:]' '[:upper:]')"
   case "$combined" in
-    *GNOME* | *CINNAMON*) echo "gnome" ;;
+    *CINNAMON*) echo "cinnamon" ;;
+    *GNOME*) echo "gnome" ;;
     *KDE*) echo "kde" ;;
     *XFCE*) echo "xfce" ;;
     *MATE*) echo "mate" ;;
@@ -550,6 +566,12 @@ set_wallpaper_xfce() {
   done <<<"$props"
 }
 
+set_wallpaper_cinnamon() {
+  local file="$1" opt="$2"
+  gsettings set org.cinnamon.desktop.background picture-uri "file://$file"
+  gsettings set org.cinnamon.desktop.background picture-options "$opt"
+}
+
 set_wallpaper_mate() {
   local file="$1" opt="$2"
   gsettings set org.mate.background picture-filename "$file"
@@ -588,6 +610,7 @@ set_wallpaper() {
   local file="$1" opt="$2"
   case "$(detect_de)" in
     gnome) set_wallpaper_gnome "$file" "$opt" ;;
+    cinnamon) set_wallpaper_cinnamon "$file" "$opt" ;;
     kde) set_wallpaper_kde "$file" "$opt" ;;
     xfce) set_wallpaper_xfce "$file" "$opt" ;;
     mate) set_wallpaper_mate "$file" "$opt" ;;
