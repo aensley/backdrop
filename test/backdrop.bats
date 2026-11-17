@@ -160,7 +160,7 @@ teardown() {
 
 @test "detect_de: detects Cinnamon from XDG_CURRENT_DESKTOP" {
   XDG_CURRENT_DESKTOP="X-Cinnamon" DESKTOP_SESSION="" run detect_de
-  [ "$output" = "gnome" ]
+  [ "$output" = "cinnamon" ]
 }
 
 @test "detect_de: detects KDE from XDG_CURRENT_DESKTOP" {
@@ -368,16 +368,46 @@ EOF
   stubdir="$(mktemp -d)"
   cat >"$stubdir/curl" <<'STUB'
 #!/usr/bin/env bash
-echo '<a href="https://www.earth.com/image/test-image/"></a>'
-echo '<meta property="og:title" content="Test Title"/>'
-echo '<meta property="og:description" content="Test description."/>'
-echo '<meta property="og:url" content="https://www.earth.com/image/test-image/"/>'
-echo '"https://cff2.earth.com/uploads/2025/10/01/photo.jpg"'
+# Serves both the listing page and the article page.
+case "$*" in
+  *"https://www.earth.com/image/"*)
+    echo '<a href="https://www.earth.com/space/nav-link-not-the-image/">Space</a>'
+    echo '<div class="ImageOfTheDayCard_main__x1"><a href="https://www.earth.com/space/test-image/"><img src="x"/></a></div>'
+    echo '<a href="https://www.earth.com/climate/second-story/">Second</a>'
+    ;;
+  *"https://www.earth.com/space/test-image/"*)
+    echo '<meta property="og:title" content="Test Title"/>'
+    echo '<meta property="og:description" content="Test description."/>'
+    echo '<meta property="og:url" content="https://www.earth.com/space/test-image/"/>'
+    echo '<meta property="og:image" content="https://www.earth.com/img/16x9/1920/media-2026/2026/11/16112930/photo.jpg"/>'
+    echo '<img src="https://cff2.earth.com/uploads/2023/06/19163105/Earth-logo.jpg"/>'
+    ;;
+  *) exit 22 ;;
+esac
 STUB
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_earth
   [ "$status" -eq 0 ]
-  [ "$(grep -v '^META_' <<<"$output")" = "https://cff2.earth.com/uploads/2025/10/01/photo.jpg" ]
+  [ "$(grep -v '^META_' <<<"$output" | sed -n 1p)" = "https://cff2.earth.com/media-2026/2026/11/16112930/photo.jpg" ]
+  [ "$(grep -v '^META_' <<<"$output" | sed -n 2p)" = "https://www.earth.com/img/16x9/1920/media-2026/2026/11/16112930/photo.jpg" ]
+  [ "$(grep -vc '^META_' <<<"$output")" -eq 2 ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Test Title" ]
+  [ "$(grep '^META_URL:' <<<"$output")" = "META_URL:https://www.earth.com/space/test-image/" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_earth: falls back to og:image when it is not a resized copy" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+echo '<div class="ImageOfTheDayCard_main"><a href="https://www.earth.com/space/test-image/"></a></div>'
+echo '<meta property="og:image" content="https://cff2.earth.com/media-2026/photo.jpg"/>'
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_earth
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "https://cff2.earth.com/media-2026/photo.jpg" ]
   rm -rf "$stubdir"
 }
 
@@ -535,18 +565,54 @@ STUB
   cat >"$stubdir/curl" <<'STUB'
 #!/usr/bin/env bash
 cat <<'HTML'
-<html><body>
-<center><b>Starry Night</b><br</center>
-<a href="image/2025/starry_night.jpg">image</a>
-<b>Explanation:</b> A wonderful view of stars.
+<html><head><style>.hds-media-detail-hero h2 { margin: 0 }</style></head><body>
+<h2>Suggested Searches</h2>
+<img src="https://assets.science.nasa.gov/dynamicimage/assets/science/missions/other.jpg?w=1024"/>
+<article class="smd-embed-post__article">
+<div class="hds-media-detail-hero alignwide">
+<img loading="lazy" src="https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2025/june/starry_night.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg" class="smd-image-rollover__image--primary"/>
+<img src="https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2025/june/starry_night_annotated.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg"/>
+<h2 class="display-48">Starry
+  Night</h2>
+<p class="media-detail-hero__description"><strong>Explanation:</strong> A <a href="#">wonderful</a> view of stars.</p>
+</div>
+</article>
+<h2>Footer</h2>
 </body></html>
 HTML
 STUB
   chmod +x "$stubdir/curl"
   PATH="$stubdir:$PATH" run resolve_apod
   [ "$status" -eq 0 ]
-  [ "$(grep -v '^META_' <<<"$output")" = "https://apod.nasa.gov/apod/image/2025/starry_night.jpg" ]
+  [ "$(grep -v '^META_' <<<"$output" | sed -n 1p)" = "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2025/june/starry_night.jpg" ]
+  [ "$(grep -v '^META_' <<<"$output" | sed -n 2p)" = "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2025/june/starry_night.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg" ]
+  [ "$(grep -vc '^META_' <<<"$output")" -eq 2 ]
   [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:Starry Night" ]
+  [ "$(grep '^META_DESC:' <<<"$output")" = "META_DESC:A wonderful view of stars." ]
+  [ "$(grep '^META_URL:' <<<"$output")" = "META_URL:https://science.nasa.gov/apod/" ]
+  rm -rf "$stubdir"
+}
+
+@test "resolve_apod: returns title but no image on a video day" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  cat >"$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+cat <<'HTML'
+<html><body><article>
+<div class="hds-media-detail-hero">
+<iframe src="https://www.youtube.com/embed/abc"></iframe>
+<h2>A Video Day</h2>
+<p><strong>Explanation:</strong> Watch this.</p>
+</div>
+</article></body></html>
+HTML
+STUB
+  chmod +x "$stubdir/curl"
+  PATH="$stubdir:$PATH" run resolve_apod
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^META_' <<<"$output")" = "" ]
+  [ "$(grep '^META_TITLE:' <<<"$output")" = "META_TITLE:A Video Day" ]
   rm -rf "$stubdir"
 }
 
@@ -987,4 +1053,182 @@ STUB
   PATH="$stubdir:$PATH" run get_active_source
   [ "$output" = "apod" ]
   rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# set_wallpaper_kde (stubbed qdbus / plasma-apply-wallpaperimage)
+# ---------------------------------------------------------------------------
+
+# Write an executable stub that records its arguments (one per line) to
+# "$dir/<name>.calls". Uses an absolute bash path so it works with a bare PATH.
+_record_stub() {
+  local dir="$1" name="$2" rc="${3:-0}"
+  printf '#!%s\nprintf "%%s\\n" "$@" >>"%s/%s.calls"\nexit %s\n' "$BASH" "$dir" "$name" "$rc" >"$dir/$name"
+  chmod +x "$dir/$name"
+}
+
+@test "set_wallpaper_kde: sends evaluateScript with image and FillMode via qdbus6" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  _record_stub "$stubdir" qdbus6
+  PATH="$stubdir:$PATH" run set_wallpaper_kde /tmp/wall.jpg scaled
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1,3p' "$stubdir/qdbus6.calls" | paste -sd' ')" = "org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript" ]
+  grep -qF "d.wallpaperPlugin='org.kde.image'" "$stubdir/qdbus6.calls"
+  grep -qF "d.writeConfig('Image','file:///tmp/wall.jpg')" "$stubdir/qdbus6.calls"
+  grep -qF "d.writeConfig('FillMode',1)" "$stubdir/qdbus6.calls"
+  rm -rf "$stubdir"
+}
+
+@test "set_wallpaper_kde: falls back to qdbus when qdbus6 is missing" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  _record_stub "$stubdir" qdbus
+  PATH="$stubdir" run set_wallpaper_kde /tmp/wall.jpg zoom
+  [ "$status" -eq 0 ]
+  grep -qF "d.writeConfig('FillMode',2)" "$stubdir/qdbus.calls"
+  rm -rf "$stubdir"
+}
+
+@test "set_wallpaper_kde: falls back to plasma-apply-wallpaperimage when qdbus fails" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  _record_stub "$stubdir" qdbus6 1
+  _record_stub "$stubdir" plasma-apply-wallpaperimage
+  PATH="$stubdir" run set_wallpaper_kde /tmp/wall.jpg zoom
+  [ "$status" -eq 0 ]
+  [ "$(cat "$stubdir/plasma-apply-wallpaperimage.calls")" = "/tmp/wall.jpg" ]
+  rm -rf "$stubdir"
+}
+
+@test "set_wallpaper_kde: fails when no KDE tools are available" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  PATH="$stubdir" run set_wallpaper_kde /tmp/wall.jpg zoom
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"qdbus and plasma-apply-wallpaperimage are both unavailable"* ]]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# set_wallpaper_lxqt (stubbed pcmanfm-qt)
+# ---------------------------------------------------------------------------
+
+@test "set_wallpaper_lxqt: calls pcmanfm-qt with file and fit mode" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  _record_stub "$stubdir" pcmanfm-qt
+  PATH="$stubdir:$PATH" run set_wallpaper_lxqt /tmp/wall.jpg scaled
+  [ "$status" -eq 0 ]
+  [ "$(paste -sd' ' "$stubdir/pcmanfm-qt.calls")" = "--set-wallpaper /tmp/wall.jpg --wallpaper-mode fit" ]
+  rm -rf "$stubdir"
+}
+
+@test "set_wallpaper_lxqt: fails when pcmanfm-qt is missing" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  PATH="$stubdir" run set_wallpaper_lxqt /tmp/wall.jpg zoom
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pcmanfm-qt is not installed"* ]]
+  rm -rf "$stubdir"
+}
+
+# ---------------------------------------------------------------------------
+# set_wallpaper_cosmic (writes a RON config file)
+# ---------------------------------------------------------------------------
+
+@test "set_wallpaper_cosmic: writes background config for all outputs" {
+  local cfg_dir="$XDG_CONFIG_HOME/cosmic/com.system76.CosmicBackground/v1"
+  run set_wallpaper_cosmic /tmp/wall.jpg zoom
+  [ "$status" -eq 0 ]
+  grep -qF 'output: "all",' "$cfg_dir/all"
+  grep -qF 'source: Path("/tmp/wall.jpg"),' "$cfg_dir/all"
+  grep -qF 'scaling_mode: Zoom,' "$cfg_dir/all"
+  [ "$(cat "$cfg_dir/same-on-all")" = "true" ]
+}
+
+@test "set_wallpaper_cosmic: uses Fit scaling for scaled option and overwrites previous config" {
+  local cfg_dir="$XDG_CONFIG_HOME/cosmic/com.system76.CosmicBackground/v1"
+  set_wallpaper_cosmic /tmp/old.jpg zoom
+  run set_wallpaper_cosmic /tmp/new.jpg scaled
+  [ "$status" -eq 0 ]
+  grep -qF 'source: Path("/tmp/new.jpg"),' "$cfg_dir/all"
+  grep -qF 'scaling_mode: Fit([0.0, 0.0, 0.0]),' "$cfg_dir/all"
+  run grep -qF 'old.jpg' "$cfg_dir/all"
+  [ "$status" -ne 0 ]
+  [ "$(find "$cfg_dir" -type f | wc -l)" -eq 2 ]
+}
+
+# ---------------------------------------------------------------------------
+# set_wallpaper_xfce XML fallback (no xfconf-query)
+# ---------------------------------------------------------------------------
+
+_xfce_xml_path() {
+  printf '%s' "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+}
+
+@test "set_wallpaper_xfce: XML fallback updates existing last-image and image-style" {
+  local stubdir cfg
+  stubdir="$(mktemp -d)"
+  ln -s "$(command -v python3)" "$stubdir/python3"
+  HOME="$(mktemp -d)"
+  cfg="$(_xfce_xml_path)"
+  mkdir -p "$(dirname "$cfg")"
+  cat >"$cfg" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitorHDMI-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/old.jpg"/>
+          <property name="image-style" type="int" value="1"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
+XML
+  PATH="$stubdir" run set_wallpaper_xfce /tmp/wall.jpg scaled
+  [ "$status" -eq 0 ]
+  grep -qF 'name="last-image" type="string" value="/tmp/wall.jpg"' "$cfg"
+  grep -qF 'name="image-style" type="int" value="4"' "$cfg"
+  rm -rf "$stubdir" "$HOME"
+}
+
+@test "set_wallpaper_xfce: XML fallback adds properties under every workspace" {
+  local stubdir cfg
+  stubdir="$(mktemp -d)"
+  ln -s "$(command -v python3)" "$stubdir/python3"
+  HOME="$(mktemp -d)"
+  cfg="$(_xfce_xml_path)"
+  mkdir -p "$(dirname "$cfg")"
+  cat >"$cfg" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty"/>
+        <property name="workspace1" type="empty"/>
+      </property>
+    </property>
+  </property>
+</channel>
+XML
+  PATH="$stubdir" run set_wallpaper_xfce /tmp/wall.jpg zoom
+  [ "$status" -eq 0 ]
+  [ "$(grep -c 'value="/tmp/wall.jpg"' "$cfg")" -eq 2 ]
+  [ "$(grep -c 'name="image-style" type="int" value="5"' "$cfg")" -eq 2 ]
+  rm -rf "$stubdir" "$HOME"
+}
+
+@test "set_wallpaper_xfce: XML fallback fails when no config exists" {
+  local stubdir
+  stubdir="$(mktemp -d)"
+  HOME="$(mktemp -d)"
+  PATH="$stubdir" run set_wallpaper_xfce /tmp/wall.jpg zoom
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"xfconf-query not found and no config"* ]]
+  rm -rf "$stubdir" "$HOME"
 }
