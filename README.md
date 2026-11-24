@@ -24,7 +24,7 @@ curl -fsSL https://ensl.ee/backdrop | bash
 
 ## Requirements
 
-- A supported desktop environment (see [Desktop Environments](#desktop-environments) below)
+- A supported [desktop environment](#desktop-environments)
 - `curl`, `python3` (standard on most distros)
 - systemd (for the daily timer)
 
